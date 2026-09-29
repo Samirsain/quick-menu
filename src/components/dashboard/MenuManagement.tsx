@@ -6,13 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Edit2, Trash2, FolderPlus, Loader2, AlertCircle, ScanSearch } from "lucide-react";
+import { Plus, Edit2, Trash2, FolderPlus, Loader2, ScanSearch } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { uploadImage as uploadToCloudinary, validateFile, deleteImage, isHostedImage } from "@/lib/imageUpload";
-import { useSubscription } from "@/hooks/useSubscription";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import AIMenuImport from "./AIMenuImport";
 import { VegMark, BestsellerBadge } from "@/components/FoodBadges";
@@ -48,7 +46,6 @@ interface MenuManagementProps {
 
 const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
   const { toast } = useToast();
-  const { menuItemLimit, isPremiumPlan } = useSubscription();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(false);
@@ -438,22 +435,6 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
   
   const uncategorizedItems = menuItems.filter(item => !item.category_id);
   
-  // Check if menu item limit is reached (Advanced plan = 50 items)
-  const isAtLimit = !isPremiumPlan && menuItems.length >= menuItemLimit;
-  const remainingItems = isPremiumPlan ? Infinity : Math.max(0, menuItemLimit - menuItems.length);
-
-  const handleAddItemClick = () => {
-    if (isAtLimit) {
-      toast({
-        title: "Menu item limit reached",
-        description: "Upgrade to Premium for unlimited menu items",
-        variant: "destructive",
-      });
-      return;
-    }
-    setDialogOpen(true);
-  };
-
   return (
     <div className="space-y-6">
       {/* Skeleton loading state */}
@@ -502,11 +483,6 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
           <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Menu Management</h2>
           <p className="text-sm md:text-base text-muted-foreground">
             Add and manage your menu items and categories
-            {!isPremiumPlan && (
-              <span className="ml-2 text-xs font-medium">
-                ({menuItems.length}/{menuItemLimit} items)
-              </span>
-            )}
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto flex-wrap">
@@ -568,12 +544,6 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
               <Button 
                 variant="hero" 
                 className="flex-1 sm:flex-none text-xs sm:text-sm"
-                onClick={(e) => {
-                  if (isAtLimit && !editingItem) {
-                    e.preventDefault();
-                    handleAddItemClick();
-                  }
-                }}
               >
                 <Plus className="h-4 w-4 mr-1 sm:mr-2" />
                 <span className="hidden xs:inline">Add </span>Item
@@ -788,20 +758,6 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
         </Dialog>
         </div>
       </div>
-
-      {/* Menu item limit warning for Advanced plan */}
-      {!isPremiumPlan && remainingItems <= 10 && (
-        <Alert variant={isAtLimit ? "destructive" : "default"} className="border-orange-200 bg-orange-50">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {isAtLimit ? (
-              <>You've reached the 50 menu item limit. <a href="/menu-dashboard" className="font-medium text-orange-600 underline">Upgrade to Premium</a> for unlimited items.</>
-            ) : (
-              <>You have {remainingItems} menu items remaining. <a href="/menu-dashboard" className="font-medium text-orange-600 underline">Upgrade to Premium</a> for unlimited items.</>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
 
       {categories.length > 0 && (
         <Card className="p-4 md:p-6 border-0 shadow-md rounded-2xl">

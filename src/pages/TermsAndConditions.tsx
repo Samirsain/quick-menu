@@ -14,7 +14,6 @@ const TermsAndConditions = () => {
       <ul>
         <li><strong>"Service"</strong> - QuickMenu website and digital menu platform</li>
         <li><strong>"User"</strong> - Any individual or entity using our Service</li>
-        <li><strong>"Subscriber"</strong> - Users with paid subscriptions</li>
         <li><strong>"Content"</strong> - Menu items, images, text uploaded by Users</li>
         <li><strong>"QR Code"</strong> - Scannable codes for accessing digital menus</li>
       </ul>
@@ -46,30 +45,8 @@ const TermsAndConditions = () => {
         <li>Keep contact information up to date</li>
       </ul>
 
-      <h2>5. Payment Terms</h2>
-      <h3>5.1 Pricing</h3>
-      <ul>
-        <li>All prices in Indian Rupees (INR)</li>
-        <li>Prices inclusive of applicable taxes unless stated otherwise</li>
-        <li>We reserve the right to change prices with prior notice</li>
-      </ul>
-
-      <h3>5.2 Payment Methods (via Razorpay)</h3>
-      <ul>
-        <li>Credit Cards (Visa, MasterCard, American Express)</li>
-        <li>Debit Cards</li>
-        <li>UPI (Google Pay, PhonePe, Paytm, etc.)</li>
-        <li>Net Banking</li>
-        <li>Digital Wallets</li>
-      </ul>
-
-      <h3>5.3 Billing</h3>
-      <ul>
-        <li>Subscriptions billed in advance</li>
-        <li>Monthly subscriptions renew automatically each month</li>
-        <li>Annual subscriptions renew automatically each year</li>
-        <li>Email notifications sent before renewal</li>
-      </ul>
+      <h2>5. Fees</h2>
+      <p>QuickMenu is currently free for restaurants, with all features included. If we ever introduce paid features, we will tell you in advance, and you will never be charged without agreeing first.</p>
 
       <h2>6. User Content</h2>
       <h3>6.1 Ownership</h3>
@@ -123,7 +100,6 @@ const TermsAndConditions = () => {
       <p>We may suspend or terminate your account if you:</p>
       <ul>
         <li>Violate these Terms and Conditions</li>
-        <li>Fail to pay subscription fees</li>
         <li>Engage in fraudulent activity</li>
         <li>Abuse our Service or support team</li>
       </ul>

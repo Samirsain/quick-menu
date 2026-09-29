@@ -102,15 +102,11 @@ const Contact = () => {
           <ul className="space-y-3">
             <li className="flex items-start gap-2">
               <span className="text-primary font-bold">•</span>
-              <span><strong>For billing:</strong> Include your registered email</span>
+              <span><strong>For account help:</strong> Include your registered email</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary font-bold">•</span>
               <span><strong>For technical issues:</strong> Describe the problem in detail</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-primary font-bold">•</span>
-              <span><strong>For refunds:</strong> Mention your payment date</span>
             </li>
           </ul>
         </div>

@@ -28,7 +28,6 @@ const Landing = () => (
         <span className="font-display text-[24px] tracking-tight">QuickMenu</span>
       </Link>
       <nav className="hidden sm:flex items-center gap-6 text-[15px] text-menu-ink/70">
-        <Link to="/pricing" className="hover:text-menu-ink transition-colors">Pricing</Link>
         <Link to="/about" className="hover:text-menu-ink transition-colors">About</Link>
       </nav>
       <Link to="/auth" className="text-[15px] font-medium text-menu-accent-2 hover:underline underline-offset-4">Log in</Link>
@@ -55,13 +54,13 @@ const Landing = () => (
             Get started <ArrowRight className="h-4 w-4" strokeWidth={2} />
           </Link>
           <Link
-            to="/pricing"
+            to="/auth"
             className="h-14 px-8 rounded-2xl border border-menu-line bg-menu-card text-[16px] font-semibold flex items-center hover:border-menu-accent/40 transition-colors"
           >
-            See pricing
+            Log in
           </Link>
         </motion.div>
-        <motion.p {...rise(0.3)} className="mt-5 text-[13px] text-menu-muted">Plans from ₹599/month · Set up in under 5 minutes</motion.p>
+        <motion.p {...rise(0.3)} className="mt-5 text-[13px] text-menu-muted">Free for every restaurant · Set up in under 5 minutes</motion.p>
 
         {/* Demo video */}
         <motion.div
@@ -107,12 +106,12 @@ const Landing = () => (
       </section>
     </main>
 
-    {/* Footer: policy links must stay reachable from the home page (Razorpay verification) */}
+    {/* Footer */}
     <footer className="mt-20 sm:mt-24 border-t border-menu-line">
       <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8 flex flex-col sm:flex-row items-center gap-4 text-[13px] text-menu-muted">
         <span>© {new Date().getFullYear()} QuickMenu</span>
         <nav className="sm:ml-auto flex flex-wrap justify-center gap-x-5 gap-y-2">
-          {[["/terms", "Terms"], ["/privacy-policy", "Privacy"], ["/refund-policy", "Refunds"], ["/shipping-policy", "Shipping"], ["/contact", "Contact"]].map(([to, label]) => (
+          {[["/about", "About"], ["/terms", "Terms"], ["/privacy-policy", "Privacy"], ["/contact", "Contact"]].map(([to, label]) => (
             <Link key={to} to={to} className="hover:text-menu-ink transition-colors">{label}</Link>
           ))}
         </nav>

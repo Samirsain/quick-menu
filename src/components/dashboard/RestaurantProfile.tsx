@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Loader2, Save, Upload, X, Bell, BellOff, BellRing, 
-  Store, ImageIcon, CheckCircle2, AlertCircle, Settings, ShoppingCart, HandHelping, Crown,
+  Store, ImageIcon, CheckCircle2, AlertCircle, Settings, ShoppingCart, HandHelping,
   Sun, Moon, Monitor, Building2, Hotel
 } from "lucide-react";
 import { uploadImage, deleteImage, isHostedImage } from "@/lib/imageUpload";
@@ -47,7 +47,6 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
   // Feature toggles
   const [ordersEnabled, setOrdersEnabled] = useState(true);
   const [waiterCallEnabled, setWaiterCallEnabled] = useState(true);
-  const [hasOrdersFeature, setHasOrdersFeature] = useState(false);
   const [featureSaving, setFeatureSaving] = useState(false);
   
   // Notification states
@@ -73,7 +72,6 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
   useEffect(() => {
     fetchRestaurantData();
     initializeNotifications();
-    checkSubscriptionFeatures();
   }, [restaurantId]);
 
   // Apply dashboard theme
@@ -176,20 +174,6 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
     setShowBusinessTypeDialog(false);
     setConfirmText("");
     setPendingBusinessType(null);
-  };
-
-  const checkSubscriptionFeatures = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      
-      const { data } = await supabase.rpc('get_user_subscription_status', { p_user_id: user.id });
-      if (data && data[0]) {
-        setHasOrdersFeature(data[0].has_orders_feature === true);
-      }
-    } catch (error) {
-      console.error('Error checking subscription:', error);
-    }
   };
 
   const fetchRestaurantData = async () => {
@@ -418,15 +402,6 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
   };
 
   const handleFeatureToggle = async (feature: 'orders' | 'waiter_call', enabled: boolean) => {
-    if (!hasOrdersFeature) {
-      toast({
-        title: "Upgrade Required",
-        description: "This feature requires the Advanced plan",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setFeatureSaving(true);
       
@@ -619,28 +594,9 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                 Control which features are available to customers
               </CardDescription>
             </div>
-            {hasOrdersFeature && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30">
-                <Crown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Advanced</span>
-              </div>
-            )}
           </div>
         </CardHeader>
         <CardContent className="p-6 pt-0 space-y-4">
-          {!hasOrdersFeature ? (
-            <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
-              <div className="flex items-start gap-3">
-                <Crown className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-medium text-amber-800 dark:text-amber-200">Upgrade to Advanced Plan</p>
-                  <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-                    Online ordering and waiter call features require the Advanced plan.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
             <>
               {/* Online Ordering Toggle */}
               <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
@@ -694,7 +650,6 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                 💡 Changes take effect immediately for new customers
               </p>
             </>
-          )}
         </CardContent>
       </Card>
 

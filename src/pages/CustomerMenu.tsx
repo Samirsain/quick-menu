@@ -128,9 +128,6 @@ const CustomerMenu = () => {
   const formatINR = useCallback((value: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0)), []);
 
-  // Subscription expired state
-  const [subscriptionExpired, setSubscriptionExpired] = useState(false);
-
   // Production-optimized queries with proper cache management
   const { data: restaurant, isLoading: isLoadingRestaurant } = useQuery({
     queryKey: ['restaurant', restaurantId],
@@ -146,18 +143,6 @@ const CustomerMenu = () => {
       if (data && !data.is_active) {
         setServiceDisabled(true);
         setRestaurantContact({ name: data.name, email: data.email, phone: data.phone });
-      }
-      
-      // Check subscription status
-      if (restaurantId) {
-        const { data: subStatus } = await supabase
-          .rpc("get_restaurant_subscription_status" as any, { p_restaurant_id: restaurantId });
-        const statusArray = subStatus as any[];
-        
-        if (!statusArray || statusArray.length === 0 || !statusArray[0].is_subscription_active) {
-          setSubscriptionExpired(true);
-          setRestaurantContact({ name: data?.name, email: data?.email, phone: data?.phone });
-        }
       }
       
       return data;
@@ -726,14 +711,12 @@ const CustomerMenu = () => {
     );
   }
 
-  // Service Disabled / Subscription Expired / Session Expired share one calm layout
+  // Service Disabled / Session Expired share one calm layout
   const blocked = serviceDisabled && restaurantContact
-    ? { title: "Menu unavailable", body: `${restaurantContact.name}'s menu is currently unavailable.`, contact: false }
-    : subscriptionExpired && restaurantContact
-      ? { title: "Menu temporarily unavailable", body: `${restaurantContact.name}'s digital menu is currently inactive. Please contact the restaurant.`, contact: true }
-      : sessionExpired
-        ? { title: "Session ended", body: sessionError || "Your menu session has ended. Scan the QR code on your table to start again.", contact: false }
-        : null;
+    ? { title: "Menu unavailable", body: `${restaurantContact.name}'s menu is currently unavailable.` }
+    : sessionExpired
+      ? { title: "Session ended", body: sessionError || "Your menu session has ended. Scan the QR code on your table to start again." }
+      : null;
 
   if (blocked) {
     return (
@@ -744,12 +727,6 @@ const CustomerMenu = () => {
           </div>
           <h1 className="font-display text-3xl tracking-tight">{blocked.title}</h1>
           <p className="mt-3 text-[15px] leading-relaxed text-menu-muted">{blocked.body}</p>
-          {blocked.contact && (
-            <div className="mt-6 space-y-1 text-sm">
-              {restaurantContact?.email && <a href={`mailto:${restaurantContact.email}`} className="block text-menu-accent underline underline-offset-4">{restaurantContact.email}</a>}
-              {restaurantContact?.phone && <a href={`tel:${restaurantContact.phone}`} className="block text-menu-accent underline underline-offset-4">{restaurantContact.phone}</a>}
-            </div>
-          )}
         </motion.div>
       </div>
     );

@@ -57,11 +57,11 @@ const About = () => {
           <h3 className="text-2xl font-bold text-center mb-8">Why Restaurants Choose Us</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: IndianRupee, title: "Affordable", desc: "Plans starting at just ₹249/month", color: "text-green-600 bg-green-100 dark:bg-green-900/30" },
+              { icon: IndianRupee, title: "Free", desc: "Free for every restaurant, all features included", color: "text-green-600 bg-green-100 dark:bg-green-900/30" },
               { icon: Zap, title: "Easy to Use", desc: "No technical knowledge required", color: "text-blue-600 bg-blue-100 dark:bg-blue-900/30" },
               { icon: Zap, title: "Quick Setup", desc: "Get started in under 5 minutes", color: "text-purple-600 bg-purple-100 dark:bg-purple-900/30" },
               { icon: Headphones, title: "Local Support", desc: "WhatsApp and phone support", color: "text-orange-600 bg-orange-100 dark:bg-orange-900/30" },
-              { icon: Shield, title: "Secure", desc: "Razorpay powered payments", color: "text-red-600 bg-red-100 dark:bg-red-900/30" },
+              { icon: Shield, title: "Secure", desc: "Your data is protected with row-level security", color: "text-red-600 bg-red-100 dark:bg-red-900/30" },
               { icon: Zap, title: "Reliable", desc: "99.9% uptime guarantee", color: "text-teal-600 bg-teal-100 dark:bg-teal-900/30" },
             ].map((item) => (
               <div key={item.title} className="flex items-start gap-4">
@@ -90,8 +90,8 @@ const About = () => {
             <Link to="/contact">
               <Button>Contact Us</Button>
             </Link>
-            <Link to="/pricing">
-              <Button variant="outline">View Pricing</Button>
+            <Link to="/auth">
+              <Button variant="outline">Get Started</Button>
             </Link>
           </div>
         </div>

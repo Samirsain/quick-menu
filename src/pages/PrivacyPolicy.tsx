@@ -13,7 +13,6 @@ const PrivacyPolicy = () => {
       <ul>
         <li><strong>Account Information:</strong> Name, email address, phone number, password</li>
         <li><strong>Business Information:</strong> Restaurant name, address, business type</li>
-        <li><strong>Payment Information:</strong> Processed securely through Razorpay (we do not store card details)</li>
         <li><strong>Communication Data:</strong> Messages, feedback, and support requests</li>
       </ul>
 
@@ -45,7 +44,6 @@ const PrivacyPolicy = () => {
       <h2>2. How We Use Your Information</h2>
       <ul>
         <li><strong>Provide Services:</strong> Create and host your digital menu, generate QR codes</li>
-        <li><strong>Process Payments:</strong> Handle subscription payments through Razorpay</li>
         <li><strong>Communicate:</strong> Send service updates, respond to inquiries, provide support</li>
         <li><strong>Improve:</strong> Analyze usage to enhance features and user experience</li>
         <li><strong>Secure:</strong> Detect and prevent fraud, abuse, and security threats</li>
@@ -57,7 +55,6 @@ const PrivacyPolicy = () => {
 
       <h3>3.1 Service Providers</h3>
       <ul>
-        <li><strong>Razorpay:</strong> Payment processing</li>
         <li><strong>Supabase:</strong> Database and authentication services</li>
         <li><strong>Cloudflare:</strong> Content delivery and security</li>
         <li><strong>Analytics providers:</strong> Usage analysis (anonymized data)</li>
@@ -78,7 +75,6 @@ const PrivacyPolicy = () => {
         <li><strong>Secure Storage:</strong> Data stored on secure, access-controlled servers</li>
         <li><strong>Access Controls:</strong> Limited employee access on need-to-know basis</li>
         <li><strong>Regular Audits:</strong> Periodic security assessments and updates</li>
-        <li><strong>Payment Security:</strong> PCI-DSS compliant payment processing via Razorpay</li>
       </ul>
 
       <h2>5. Data Retention</h2>

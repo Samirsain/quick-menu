@@ -97,7 +97,24 @@ VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ### 2. Database Setup
 
-Run the migrations in `supabase/migrations/` folder in order.
+QuickMenu is free for every restaurant: there are no plans or payments. The whole schema (tables, security rules, functions, realtime) is one file. Run it once on an empty Supabase project:
+
+```bash
+psql "$SUPABASE_DB_URL" -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20260929000000_quickmenu_schema.sql
+```
+
+Then check that the security rules hold (this runs in a transaction that is rolled back, so it changes nothing):
+
+```bash
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_check.sql   # prints ALL CHECKS PASSED
+```
+
+Create an admin login for `/admindashboard`:
+
+```sql
+insert into admin_users (email, password_hash)
+values ('you@example.com', extensions.crypt('a-strong-password', extensions.gen_salt('bf')));
+```
 
 ### 3. Start Development
 

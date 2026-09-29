@@ -13,10 +13,7 @@ const PolicyLayout = ({ title, lastUpdated, children }: PolicyLayoutProps) => {
   const policyLinks = [
     { to: "/terms", label: "Terms" },
     { to: "/privacy-policy", label: "Privacy" },
-    { to: "/refund-policy", label: "Refunds" },
-    { to: "/shipping-policy", label: "Shipping" },
     { to: "/contact", label: "Contact" },
-    { to: "/pricing", label: "Pricing" },
     { to: "/about", label: "About" },
   ];
 

@@ -6,26 +6,19 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { MotionConfig } from "framer-motion";
 import { setupVisibilityOptimization } from "@/lib/realtimeOptimization";
-import { SubscriptionProvider } from "@/hooks/useSubscription";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import AdminLogin from "./pages/AdminLogin";
 import DashboardWithSidebar from "./pages/DashboardWithSidebar";
-import MenuOnlyDashboard from "./pages/MenuOnlyDashboard";
 import CustomerMenu from "./pages/CustomerMenu";
-import CustomerMenuRouter from "./pages/CustomerMenuRouter";
 import MenuSession from "./pages/MenuSession";
 import KitchenDisplay from "./pages/KitchenDisplay";
 import AdminDashboardWithSidebar from "./pages/AdminDashboardWithSidebar";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
-// Policy pages for Razorpay verification
 import TermsAndConditions from "./pages/TermsAndConditions";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
-import RefundPolicy from "./pages/RefundPolicy";
-import ShippingPolicy from "./pages/ShippingPolicy";
 import Contact from "./pages/Contact";
-import Pricing from "./pages/Pricing";
 import About from "./pages/About";
 
 // Configure React Query with optimized defaults
@@ -51,7 +44,6 @@ const App = () => {
   return (
     <MotionConfig reducedMotion="user">
     <QueryClientProvider client={queryClient}>
-      <SubscriptionProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -61,26 +53,21 @@ const App = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/dashboard" element={<DashboardWithSidebar />} />
-              <Route path="/menu-dashboard" element={<MenuOnlyDashboard />} />
               <Route path="/kitchen" element={<KitchenDisplay />} />
               <Route path="/scan/:restaurantId" element={<MenuSession />} />
-              <Route path="/menu/:restaurantId" element={<CustomerMenuRouter />} />
+              <Route path="/menu/:restaurantId" element={<CustomerMenu />} />
               <Route path="/admindashboard/login" element={<AdminLogin />} />
               <Route path="/admindashboard" element={<AdminDashboardWithSidebar />} />
-              {/* Policy pages for Razorpay verification */}
+              {/* Policy pages */}
               <Route path="/terms" element={<TermsAndConditions />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-              <Route path="/refund-policy" element={<RefundPolicy />} />
-              <Route path="/shipping-policy" element={<ShippingPolicy />} />
               <Route path="/contact" element={<Contact />} />
-              <Route path="/pricing" element={<Pricing />} />
               <Route path="/about" element={<About />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
-      </SubscriptionProvider>
     </QueryClientProvider>
     </MotionConfig>
   );
