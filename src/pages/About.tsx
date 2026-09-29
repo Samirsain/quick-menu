@@ -81,9 +81,8 @@ const About = () => {
         <div className="p-8 rounded-xl border border-border/50 bg-card text-center">
           <h3 className="text-2xl font-bold mb-4">Get in Touch</h3>
           <div className="space-y-2 text-muted-foreground mb-6">
-            <p><strong className="text-foreground">Website:</strong> <a href="https://addmenu.in" className="text-primary hover:underline">https://addmenu.in</a></p>
-            <p><strong className="text-foreground">Email:</strong> <a href="mailto:support@addmenu.in" className="text-primary hover:underline">support@addmenu.in</a></p>
-            <p><strong className="text-foreground">Phone/WhatsApp:</strong> <a href="tel:+917005832798" className="text-primary hover:underline">+91 700-583-2798</a></p>
+            <p><strong className="text-foreground">Website:</strong> <a href="https://zenviqdigital.in" target="_blank" rel="noopener" className="text-primary hover:underline">zenviqdigital.in</a></p>
+            <p><strong className="text-foreground">Phone/WhatsApp:</strong> <a href="tel:+919311908389" className="text-primary hover:underline">+91 93119 08389</a></p>
             <p><strong className="text-foreground">Location:</strong> Tripura, India</p>
           </div>
           <div className="flex justify-center gap-4">

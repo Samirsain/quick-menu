@@ -6,7 +6,7 @@ const TermsAndConditions = () => {
       <h2>1. Introduction</h2>
       <p>
         Welcome to QuickMenu ("Company", "we", "our", "us"). These Terms and Conditions govern your use of our website at{" "}
-        <a href="https://addmenu.in">https://addmenu.in</a> and our digital menu services.
+        <a href="https://quickmenu-cpt.pages.dev">quickmenu-cpt.pages.dev</a> and our digital menu services.
       </p>
       <p>By accessing or using the Service, you agree to be bound by these Terms.</p>
 

@@ -89,11 +89,9 @@ const PolicyLayout = ({ title, lastUpdated, children }: PolicyLayoutProps) => {
           </div>
           <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} QuickMenu. All rights reserved. Made by <a href="https://zenviqdigital.in" target="_blank" rel="noopener" className="font-medium hover:text-primary underline-offset-4 hover:underline transition-colors">zenviqdigital.in</a></p>
           <div className="flex items-center justify-center gap-4 mt-2 text-sm text-muted-foreground">
-            <a href="https://addmenu.in" className="hover:text-primary transition-colors">addmenu.in</a>
+            <a href="https://zenviqdigital.in" target="_blank" rel="noopener" className="hover:text-primary transition-colors">zenviqdigital.in</a>
             <span>•</span>
-            <a href="mailto:support@addmenu.in" className="hover:text-primary transition-colors">support@addmenu.in</a>
-            <span>•</span>
-            <a href="tel:+917005832798" className="hover:text-primary transition-colors">+91 700-583-2798</a>
+            <a href="tel:+919311908389" className="hover:text-primary transition-colors">+91 93119 08389</a>
           </div>
         </div>
       </footer>

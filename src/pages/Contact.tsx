@@ -1,5 +1,5 @@
 import PolicyLayout from "@/components/PolicyLayout";
-import { Mail, Phone, MessageCircle, MapPin, Clock } from "lucide-react";
+import { Phone, MessageCircle, MapPin, Clock } from "lucide-react";
 
 const Contact = () => {
   return (
@@ -15,23 +15,7 @@ const Contact = () => {
         {/* Contact Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
           <a 
-            href="mailto:support@addmenu.in"
-            className="group p-6 rounded-xl border border-border/50 bg-card hover:border-primary/30 hover:shadow-lg transition-all duration-300"
-          >
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                <Mail className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">Email</h3>
-                <p className="text-primary font-medium">support@addmenu.in</p>
-                <p className="text-sm text-muted-foreground mt-1">Response within 24 hours</p>
-              </div>
-            </div>
-          </a>
-
-          <a 
-            href="tel:+917005832798"
+            href="tel:+919311908389"
             className="group p-6 rounded-xl border border-border/50 bg-card hover:border-green-500/30 hover:shadow-lg transition-all duration-300"
           >
             <div className="flex items-start gap-4">
@@ -40,14 +24,14 @@ const Contact = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-lg">Phone</h3>
-                <p className="text-green-600 font-medium">+91 700-583-2798</p>
+                <p className="text-green-600 font-medium">+91 93119 08389</p>
                 <p className="text-sm text-muted-foreground mt-1">Immediate during business hours</p>
               </div>
             </div>
           </a>
 
           <a 
-            href="https://wa.me/917005832798"
+            href="https://wa.me/919311908389"
             target="_blank"
             rel="noopener noreferrer"
             className="group p-6 rounded-xl border border-border/50 bg-card hover:border-green-500/30 hover:shadow-lg transition-all duration-300"
@@ -58,7 +42,7 @@ const Contact = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-lg">WhatsApp</h3>
-                <p className="text-green-600 font-medium">+91 700-583-2798</p>
+                <p className="text-green-600 font-medium">+91 93119 08389</p>
                 <p className="text-sm text-muted-foreground mt-1">Response within a few hours</p>
               </div>
             </div>
@@ -116,12 +100,11 @@ const Contact = () => {
           <h3 className="font-semibold text-xl mb-4">Company Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div className="space-y-2">
-              <p><strong>Registered Name:</strong> AddMenu</p>
-              <p><strong>Website:</strong> <a href="https://addmenu.in" className="text-primary hover:underline">https://addmenu.in</a></p>
+              <p><strong>Name:</strong> QuickMenu</p>
+              <p><strong>Website:</strong> <a href="https://zenviqdigital.in" target="_blank" rel="noopener" className="text-primary hover:underline">zenviqdigital.in</a></p>
             </div>
             <div className="space-y-2">
-              <p><strong>Support Email:</strong> support@addmenu.in</p>
-              <p><strong>Contact Number:</strong> +91 700-583-2798</p>
+              <p><strong>Contact Number:</strong> +91 93119 08389</p>
             </div>
           </div>
         </div>
