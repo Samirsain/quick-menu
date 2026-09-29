@@ -77,7 +77,7 @@ const SubscriptionManagement = () => {
       await openRazorpayCheckout({
         key: razorpayKeyId,
         subscription_id: subscriptionId,
-        name: "AddMenu",
+        name: "QuickMenu",
         description: `Upgrade to ${plans.find((p) => p.id === planId)?.name}`,
         prefill: { email: user.email || "" },
         theme: { color: "#f97316" },

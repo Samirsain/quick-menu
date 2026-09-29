@@ -221,7 +221,7 @@ const Auth = () => {
       await openRazorpayCheckout({
         key: razorpayKeyId,
         subscription_id: subscriptionId,
-        name: "AddMenu",
+        name: "QuickMenu",
         description: `${planName} - ${billingCycle} subscription`,
         prefill: { email, name: restaurantName },
         theme: { color: "#f97316" },
@@ -430,7 +430,7 @@ const Auth = () => {
         <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur">
           <CardContent className="p-8">
             <Logo />
-            <h1 className="text-2xl font-bold text-center text-gray-900">AddMenu</h1>
+            <h1 className="text-2xl font-bold text-center text-gray-900">QuickMenu</h1>
             <p className="text-gray-500 text-center mt-1 mb-6">Select a plan to continue</p>
 
             <button 
@@ -568,7 +568,7 @@ const Auth = () => {
         <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur">
           <CardContent className="p-8">
             <Logo />
-            <h1 className="text-2xl font-bold text-center text-gray-900">AddMenu</h1>
+            <h1 className="text-2xl font-bold text-center text-gray-900">QuickMenu</h1>
             <p className="text-gray-500 text-center mt-1 mb-6">Reset your password</p>
 
             {resetEmailSent ? (
@@ -628,7 +628,7 @@ const Auth = () => {
       <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur">
         <CardContent className="p-8">
           <Logo />
-          <h1 className="text-2xl font-bold text-center text-gray-900">AddMenu</h1>
+          <h1 className="text-2xl font-bold text-center text-gray-900">QuickMenu</h1>
           <p className="text-gray-500 text-center mt-1 mb-6">Create your digital menu</p>
 
           {/* Tabs */}

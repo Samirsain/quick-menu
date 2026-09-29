@@ -40,7 +40,7 @@ const PolicyLayout = ({ title, lastUpdated, children }: PolicyLayoutProps) => {
               <div className="p-1.5 rounded-lg bg-primary/10">
                 <QrCode className="h-4 w-4 text-primary" />
               </div>
-              <span className="text-sm font-medium hidden sm:inline">AddMenu</span>
+              <span className="text-sm font-medium hidden sm:inline">QuickMenu</span>
             </Link>
           </div>
         </div>
@@ -88,9 +88,9 @@ const PolicyLayout = ({ title, lastUpdated, children }: PolicyLayoutProps) => {
             <div className="p-1.5 rounded-lg bg-primary/10">
               <QrCode className="h-4 w-4 text-primary" />
             </div>
-            <span className="font-semibold">AddMenu</span>
+            <span className="font-semibold">QuickMenu</span>
           </div>
-          <p className="text-sm text-muted-foreground">© 2025 AddMenu. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">© 2025 QuickMenu. All rights reserved.</p>
           <div className="flex items-center justify-center gap-4 mt-2 text-sm text-muted-foreground">
             <a href="https://addmenu.in" className="hover:text-primary transition-colors">addmenu.in</a>
             <span>•</span>

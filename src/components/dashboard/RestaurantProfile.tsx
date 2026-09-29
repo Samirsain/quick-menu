@@ -225,8 +225,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
 
   const initializeNotifications = async () => {
     // Check if on production domain
-    const isProd = window.location.hostname === 'addmenu.site' || 
-                   window.location.hostname.endsWith('.addmenu.site');
+    const isProd = window.location.hostname === 'quickmenu-cpt.pages.dev'; // must match index.html and the OneSignal Site URL
     setIsProductionDomain(isProd);
     
     // Check browser support
@@ -267,7 +266,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
     if (!isProductionDomain) {
       toast({
         title: "Not available here",
-        description: "Push notifications only work on addmenu.site",
+        description: "Push notifications only work on quickmenu-cpt.pages.dev",
         variant: "destructive",
       });
       return;
@@ -803,7 +802,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Push notifications are only available on <strong>addmenu.site</strong>. 
+                  Push notifications are only available on <strong>quickmenu-cpt.pages.dev</strong>. 
                   You're currently on {window.location.hostname}.
                 </p>
               </div>

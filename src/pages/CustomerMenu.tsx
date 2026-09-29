@@ -1029,7 +1029,7 @@ const CustomerMenu = () => {
                     ))}
                   </div>
                 )}
-                <p className="mt-8 pb-4 text-[11px] uppercase tracking-[0.2em] text-menu-muted/70">Powered by AddMenu</p>
+                <p className="mt-8 pb-4 text-[11px] uppercase tracking-[0.2em] text-menu-muted/70">Powered by QuickMenu</p>
               </footer>
             )}
           </main>

@@ -11,14 +11,14 @@ const ShippingPolicy = () => {
           <div>
             <h2 className="text-xl font-bold text-blue-800 dark:text-blue-200 m-0">Digital Service - No Physical Shipping</h2>
             <p className="text-blue-700 dark:text-blue-300 m-0 mt-1">
-              AddMenu is a 100% digital service. All products and services are delivered electronically. No physical goods are shipped.
+              QuickMenu is a 100% digital service. All products and services are delivered electronically. No physical goods are shipped.
             </p>
           </div>
         </div>
       </div>
 
       <h2>1. Nature of Service</h2>
-      <p>AddMenu provides:</p>
+      <p>QuickMenu provides:</p>
       <ul>
         <li>Digital menu creation and hosting platform</li>
         <li>QR code generation for restaurant menus</li>
@@ -81,7 +81,7 @@ const ShippingPolicy = () => {
       </div>
 
       <h2>5. Technical Requirements</h2>
-      <p>To access AddMenu services:</p>
+      <p>To access QuickMenu services:</p>
       <ul>
         <li>Device with internet connection (computer, tablet, or smartphone)</li>
         <li>Modern web browser (Chrome, Firefox, Safari, Edge)</li>
@@ -99,7 +99,7 @@ const ShippingPolicy = () => {
 
       <h2>7. No Physical Shipping</h2>
       <div className="not-prose bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-4">
-        <p className="font-medium text-amber-800 dark:text-amber-200 mb-2">AddMenu does not:</p>
+        <p className="font-medium text-amber-800 dark:text-amber-200 mb-2">QuickMenu does not:</p>
         <ul className="list-disc pl-6 space-y-1 text-sm text-amber-700 dark:text-amber-300">
           <li>Ship any physical products</li>
           <li>Deliver printed QR codes or materials</li>

@@ -83,7 +83,7 @@ const SubscriptionPricing = ({ onSuccess }: SubscriptionPricingProps) => {
         await openRazorpayCheckout({
           key: razorpayKeyId,
           subscription_id: subscriptionId,
-          name: "AddMenu",
+          name: "QuickMenu",
           description: `${planName} - ${billingCycle} subscription`,
           prefill: {
             email: user.email || "",

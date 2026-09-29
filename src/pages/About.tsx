@@ -14,9 +14,9 @@ const About = () => {
               <QrCode className="h-12 w-12 text-primary" />
             </div>
           </div>
-          <h2 className="text-3xl font-bold mb-4">What is AddMenu?</h2>
+          <h2 className="text-3xl font-bold mb-4">What is QuickMenu?</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto px-4">
-            AddMenu is a digital menu solution for restaurants, cafes, and food businesses. 
+            QuickMenu is a digital menu solution for restaurants, cafes, and food businesses. 
             We help you create beautiful QR code menus that your customers can scan and view on their phones.
           </p>
         </div>

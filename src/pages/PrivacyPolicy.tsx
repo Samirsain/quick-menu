@@ -4,7 +4,7 @@ const PrivacyPolicy = () => {
   return (
     <PolicyLayout title="Privacy Policy" lastUpdated="December 3, 2025">
       <p className="text-lg">
-        At AddMenu, we are committed to protecting your privacy and ensuring the security of your personal information.
+        At QuickMenu, we are committed to protecting your privacy and ensuring the security of your personal information.
       </p>
 
       <h2>1. Information We Collect</h2>
@@ -110,7 +110,7 @@ const PrivacyPolicy = () => {
 
       <h2>8. Grievance Officer</h2>
       <div className="bg-muted/50 p-4 rounded-xl not-prose">
-        <p className="text-sm"><strong>Name:</strong> AddMenu Support Team</p>
+        <p className="text-sm"><strong>Name:</strong> QuickMenu Support Team</p>
         <p className="text-sm"><strong>Email:</strong> support@addmenu.in</p>
         <p className="text-sm"><strong>Phone:</strong> +91 700-583-2798</p>
         <p className="text-sm"><strong>Address:</strong> Tripura, India</p>

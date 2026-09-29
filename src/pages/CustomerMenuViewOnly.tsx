@@ -392,10 +392,10 @@ const CustomerMenuViewOnly = () => {
               )}
             </div>
           )}
-          {/* Powered by AddMenu */}
+          {/* Powered by QuickMenu */}
           <div className="text-center">
             <p className="text-xs text-zinc-400 dark:text-zinc-500">
-              Powered by <span className="font-semibold text-orange-500">AddMenu</span>
+              Powered by <span className="font-semibold text-orange-500">QuickMenu</span>
             </p>
           </div>
         </div>

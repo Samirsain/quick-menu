@@ -1,6 +1,6 @@
 {
-  "name": "AddMenu",
-  "short_name": "AddMenu",
+  "name": "QuickMenu",
+  "short_name": "QuickMenu",
   "description": "Digital menu and ordering system for restaurants",
   "start_url": "/",
   "display": "standalone",

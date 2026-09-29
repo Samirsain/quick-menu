@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
-    <title>AddMenu - QR Menu & Ordering System</title>
+    <title>QuickMenu - QR Menu & Ordering System</title>
     <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
     <link rel="apple-touch-icon" href="/favicon.jpg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -15,9 +15,8 @@
     <script>
       console.log('🔔 OneSignal script loading...');
       
-      // Only initialize OneSignal on production domain (addmenu.site)
-      const isProductionDomain = window.location.hostname === 'addmenu.site' || 
-                                  window.location.hostname.endsWith('.addmenu.site');
+      // Only initialize OneSignal on the production domain (must match the Site URL set in OneSignal)
+      const isProductionDomain = window.location.hostname === 'quickmenu-cpt.pages.dev';
       
       if (isProductionDomain) {
         window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -48,7 +47,7 @@
               },
               // Welcome notification
               welcomeNotification: {
-                title: "AddMenu Notifications",
+                title: "QuickMenu Notifications",
                 message: "You'll now receive order alerts!"
               }
             });
@@ -63,20 +62,19 @@
           }
         });
       } else {
-        console.log('⚠️ OneSignal skipped - only runs on addmenu.site (current:', window.location.hostname, ')');
+        console.log('⚠️ OneSignal skipped - only runs on quickmenu-cpt.pages.dev (current:', window.location.hostname, ')');
       }
     </script>
     <meta name="description" content="Modern QR ordering system for restaurants. Contactless menu browsing, real-time order tracking, and customer feedback." />
-    <meta name="author" content="AddMenu" />
+    <meta name="author" content="QuickMenu" />
 
-    <meta property="og:title" content="AddMenu - QR Menu & Ordering System" />
+    <meta property="og:title" content="QuickMenu - QR Menu & Ordering System" />
     <meta property="og:description" content="Modern QR ordering system for restaurants. Contactless menu browsing, real-time order tracking, and customer feedback." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image" content="https://quickmenu-cpt.pages.dev/quickmenu-demo.jpg" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@QuickMenuDish" />
-    <meta name="twitter:image" content="/og-image.png" />
+    <meta name="twitter:image" content="https://quickmenu-cpt.pages.dev/quickmenu-demo.jpg" />
     
     <!-- Razorpay SDK - Load directly for better reliability -->
     <link rel="preconnect" href="https://checkout.razorpay.com" />

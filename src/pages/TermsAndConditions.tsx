@@ -5,14 +5,14 @@ const TermsAndConditions = () => {
     <PolicyLayout title="Terms and Conditions" lastUpdated="December 3, 2025">
       <h2>1. Introduction</h2>
       <p>
-        Welcome to AddMenu ("Company", "we", "our", "us"). These Terms and Conditions govern your use of our website at{" "}
+        Welcome to QuickMenu ("Company", "we", "our", "us"). These Terms and Conditions govern your use of our website at{" "}
         <a href="https://addmenu.in">https://addmenu.in</a> and our digital menu services.
       </p>
       <p>By accessing or using the Service, you agree to be bound by these Terms.</p>
 
       <h2>2. Definitions</h2>
       <ul>
-        <li><strong>"Service"</strong> - AddMenu website and digital menu platform</li>
+        <li><strong>"Service"</strong> - QuickMenu website and digital menu platform</li>
         <li><strong>"User"</strong> - Any individual or entity using our Service</li>
         <li><strong>"Subscriber"</strong> - Users with paid subscriptions</li>
         <li><strong>"Content"</strong> - Menu items, images, text uploaded by Users</li>
@@ -20,7 +20,7 @@ const TermsAndConditions = () => {
       </ul>
 
       <h2>3. Service Description</h2>
-      <p>AddMenu provides:</p>
+      <p>QuickMenu provides:</p>
       <ul>
         <li>Digital menu creation and hosting platform</li>
         <li>QR code generation for restaurant menus</li>
@@ -77,7 +77,7 @@ const TermsAndConditions = () => {
 
       <h3>6.2 License Grant</h3>
       <p>
-        By uploading content, you grant AddMenu a non-exclusive, worldwide, royalty-free license to use, display, and distribute your content solely for providing our Service.
+        By uploading content, you grant QuickMenu a non-exclusive, worldwide, royalty-free license to use, display, and distribute your content solely for providing our Service.
       </p>
 
       <h3>6.3 Content Guidelines</h3>
@@ -104,7 +104,7 @@ const TermsAndConditions = () => {
 
       <h2>8. Intellectual Property</h2>
       <p>
-        The AddMenu name, logo, website design, and all related intellectual property are owned by AddMenu. You may not use our trademarks without prior written consent.
+        The QuickMenu name, logo, website design, and all related intellectual property are owned by QuickMenu. You may not use our trademarks without prior written consent.
       </p>
 
       <h2>9. Service Availability</h2>
@@ -119,7 +119,7 @@ const TermsAndConditions = () => {
       <h3>By User</h3>
       <p>You may terminate your account at any time through dashboard settings or by contacting us.</p>
 
-      <h3>By AddMenu</h3>
+      <h3>By QuickMenu</h3>
       <p>We may suspend or terminate your account if you:</p>
       <ul>
         <li>Violate these Terms and Conditions</li>
@@ -129,7 +129,7 @@ const TermsAndConditions = () => {
       </ul>
 
       <h2>11. Limitation of Liability</h2>
-      <p>To the maximum extent permitted by law, AddMenu shall not be liable for:</p>
+      <p>To the maximum extent permitted by law, QuickMenu shall not be liable for:</p>
       <ul>
         <li>Any indirect, incidental, or consequential damages</li>
         <li>Loss of profits, data, or business opportunities</li>
