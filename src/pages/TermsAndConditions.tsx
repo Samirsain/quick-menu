@@ -119,7 +119,6 @@ const TermsAndConditions = () => {
       <h2>12. Dispute Resolution</h2>
       <ul>
         <li>First attempted through good-faith negotiation</li>
-        <li>Subject to exclusive jurisdiction of courts in Tripura, India</li>
         <li>Governed by the laws of India</li>
       </ul>
     </PolicyLayout>

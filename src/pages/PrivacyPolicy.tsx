@@ -96,7 +96,7 @@ const PrivacyPolicy = () => {
         <li><strong>Withdraw Consent:</strong> Withdraw previously given consent</li>
       </ul>
       <p>
-        To exercise these rights, call or WhatsApp us at <a href="tel:+919311908389">+91 93119 08389</a>
+        To exercise these rights, email us at <a href="mailto:hii@samirsain.com">hii@samirsain.com</a> or call/WhatsApp <a href="tel:+919311908389">+91 93119 08389</a>
       </p>
 
       <h2>7. Children's Privacy</h2>
@@ -108,7 +108,7 @@ const PrivacyPolicy = () => {
       <div className="bg-muted/50 p-4 rounded-xl not-prose">
         <p className="text-sm"><strong>Name:</strong> QuickMenu Support Team</p>
         <p className="text-sm"><strong>Phone:</strong> +91 93119 08389</p>
-        <p className="text-sm"><strong>Address:</strong> Tripura, India</p>
+        <p className="text-sm"><strong>Email:</strong> <a href="mailto:hii@samirsain.com">hii@samirsain.com</a></p>
         <p className="text-sm"><strong>Response Time:</strong> Within 24-48 hours</p>
       </div>
     </PolicyLayout>

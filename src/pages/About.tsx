@@ -83,7 +83,7 @@ const About = () => {
           <div className="space-y-2 text-muted-foreground mb-6">
             <p><strong className="text-foreground">Website:</strong> <a href="https://zenviqdigital.in" target="_blank" rel="noopener" className="text-primary hover:underline">zenviqdigital.in</a></p>
             <p><strong className="text-foreground">Phone/WhatsApp:</strong> <a href="tel:+919311908389" className="text-primary hover:underline">+91 93119 08389</a></p>
-            <p><strong className="text-foreground">Location:</strong> Tripura, India</p>
+            <p><strong className="text-foreground">Email:</strong> <a href="mailto:hii@samirsain.com" className="text-primary hover:underline">hii@samirsain.com</a></p>
           </div>
           <div className="flex justify-center gap-4">
             <Link to="/contact">

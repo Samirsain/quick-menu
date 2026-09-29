@@ -91,6 +91,8 @@ const PolicyLayout = ({ title, lastUpdated, children }: PolicyLayoutProps) => {
           <div className="flex items-center justify-center gap-4 mt-2 text-sm text-muted-foreground">
             <a href="https://zenviqdigital.in" target="_blank" rel="noopener" className="hover:text-primary transition-colors">zenviqdigital.in</a>
             <span>•</span>
+            <a href="mailto:hii@samirsain.com" className="hover:text-primary transition-colors">hii@samirsain.com</a>
+            <span>•</span>
             <a href="tel:+919311908389" className="hover:text-primary transition-colors">+91 93119 08389</a>
           </div>
         </div>

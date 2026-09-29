@@ -1,5 +1,5 @@
 import PolicyLayout from "@/components/PolicyLayout";
-import { Phone, MessageCircle, MapPin, Clock } from "lucide-react";
+import { Phone, MessageCircle, Mail, Clock } from "lucide-react";
 
 const Contact = () => {
   return (
@@ -48,18 +48,21 @@ const Contact = () => {
             </div>
           </a>
 
-          <div className="p-6 rounded-xl border border-border/50 bg-card">
+          <a
+            href="mailto:hii@samirsain.com"
+            className="group p-6 rounded-xl border border-border/50 bg-card hover:border-blue-500/30 hover:shadow-lg transition-all duration-300"
+          >
             <div className="flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
-                <MapPin className="h-6 w-6 text-blue-600" />
+              <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
+                <Mail className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">Location</h3>
-                <p className="text-foreground font-medium">Tripura, India</p>
-                <p className="text-sm text-muted-foreground mt-1">Serving restaurants across India</p>
+                <h3 className="font-semibold text-lg">Email</h3>
+                <p className="text-blue-600 font-medium">hii@samirsain.com</p>
+                <p className="text-sm text-muted-foreground mt-1">Response within 24 hours</p>
               </div>
             </div>
-          </div>
+          </a>
         </div>
 
         {/* Business Hours */}
@@ -104,6 +107,7 @@ const Contact = () => {
               <p><strong>Website:</strong> <a href="https://zenviqdigital.in" target="_blank" rel="noopener" className="text-primary hover:underline">zenviqdigital.in</a></p>
             </div>
             <div className="space-y-2">
+              <p><strong>Email:</strong> <a href="mailto:hii@samirsain.com" className="text-primary hover:underline">hii@samirsain.com</a></p>
               <p><strong>Contact Number:</strong> +91 93119 08389</p>
             </div>
           </div>
@@ -113,7 +117,7 @@ const Contact = () => {
         <div className="mt-12 text-center">
           <h3 className="font-semibold text-xl mb-4">Service Areas</h3>
           <p className="text-muted-foreground">
-            Serving restaurants across India including Agartala, Khowai, Belonia, Udaipur, Dharmanagar, and 30+ cities across Tripura and India.
+            Serving restaurants across India.
           </p>
         </div>
       </div>
