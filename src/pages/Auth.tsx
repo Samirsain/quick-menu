@@ -138,11 +138,7 @@ const Auth = () => {
 
   // Logo component
   const Logo = () => (
-    <div className="w-16 h-16 bg-orange-500 rounded-xl flex items-center justify-center mx-auto mb-4">
-      <svg viewBox="0 0 24 24" className="w-10 h-10 text-white" fill="currentColor">
-        <path d="M3 3h18v2H3V3zm0 4h12v2H3V7zm0 4h18v2H3v-2zm0 4h12v2H3v-2zm0 4h18v2H3v-2z" />
-      </svg>
-    </div>
+    <img src="/icons/icon-192.png" alt="QuickMenu" className="w-16 h-16 rounded-2xl mx-auto mb-4 shadow-md" />
   );
 
   if (showForgotPassword) {

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { InstallAppButton } from "@/components/InstallAppButton";
 import { motion } from "framer-motion";
 import { ArrowRight, Leaf, QrCode, BellRing, ListChecks } from "lucide-react";
 
@@ -49,16 +50,11 @@ const Landing = () => (
         <motion.div {...rise(0.24)} className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
             to="/auth"
-            className="h-14 px-8 rounded-2xl bg-gradient-to-r from-menu-accent to-menu-accent-2 text-[#FBF4EA] text-[16px] font-semibold flex items-center gap-2 shadow-[0_18px_40px_-16px_rgba(138,58,30,0.75)] hover:brightness-105 active:scale-[0.99] transition"
+            className="h-14 w-full max-w-xs sm:w-auto px-8 rounded-2xl bg-gradient-to-r from-menu-accent to-menu-accent-2 text-[#FBF4EA] text-[16px] font-semibold flex items-center justify-center gap-2 shadow-[0_18px_40px_-16px_rgba(138,58,30,0.75)] hover:brightness-105 active:scale-[0.99] transition"
           >
             Get started <ArrowRight className="h-4 w-4" strokeWidth={2} />
           </Link>
-          <Link
-            to="/auth"
-            className="h-14 px-8 rounded-2xl border border-menu-line bg-menu-card text-[16px] font-semibold flex items-center hover:border-menu-accent/40 transition-colors"
-          >
-            Log in
-          </Link>
+          <InstallAppButton className="h-14 w-full max-w-xs sm:w-auto px-8 rounded-2xl border border-menu-line bg-menu-card text-[16px] font-semibold flex items-center justify-center gap-2 hover:border-menu-accent/40 active:scale-[0.99] transition" />
         </motion.div>
         <motion.p {...rise(0.3)} className="mt-5 text-[13px] text-menu-muted">Free for every restaurant · Set up in under 5 minutes</motion.p>
 

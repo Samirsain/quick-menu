@@ -69,11 +69,12 @@ export const Sidebar = ({
   );
 };
 
-export const SidebarBody = (props: React.ComponentProps<typeof motion.div>) => {
+// mobileTitle: text in the phone top bar (the current page), mobileActions: buttons on its right
+export const SidebarBody = ({ mobileTitle, mobileActions, ...props }: React.ComponentProps<typeof motion.div> & { mobileTitle?: string; mobileActions?: React.ReactNode }) => {
   return (
     <>
       <DesktopSidebar {...props} />
-      <MobileSidebar {...props} />
+      <MobileSidebar {...props} title={mobileTitle} actions={mobileActions} />
     </>
   );
 };
@@ -105,6 +106,8 @@ export const DesktopSidebar = ({
 export const MobileSidebar = ({
   className,
   children,
+  title = "Dashboard",
+  actions,
   ...props
 }: any) => {
   const { open, setOpen } = useSidebar();
@@ -112,16 +115,16 @@ export const MobileSidebar = ({
     <>
       <div
         className={cn(
-          "h-14 px-4 py-3 flex flex-row md:hidden items-center justify-between bg-neutral-100 dark:bg-neutral-800 w-full sticky top-0 z-50 shadow-sm"
+          "min-h-14 px-4 pt-[env(safe-area-inset-top)] flex flex-row md:hidden items-center justify-between gap-2 bg-neutral-100 dark:bg-neutral-800 w-full sticky top-0 z-50 shadow-sm"
         )}
       >
-        <div className="flex items-center gap-2">
-          <Menu
-            className="text-neutral-800 dark:text-neutral-200 cursor-pointer h-6 w-6"
-            onClick={() => setOpen(!open)}
-          />
-          <span className="text-neutral-800 dark:text-neutral-200 font-medium text-sm">Dashboard</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <button type="button" aria-label="Open menu" onClick={() => setOpen(!open)} className="-ml-2 h-10 w-10 flex items-center justify-center rounded-full active:bg-neutral-200 dark:active:bg-neutral-700">
+            <Menu className="text-neutral-800 dark:text-neutral-200 h-6 w-6" />
+          </button>
+          <span className="text-neutral-900 dark:text-neutral-100 font-semibold text-base truncate">{title}</span>
         </div>
+        {actions && <div className="flex items-center gap-1 flex-shrink-0">{actions}</div>}
         <AnimatePresence>
           {open && (
             <>

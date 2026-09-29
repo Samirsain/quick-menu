@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -436,6 +436,71 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
   
   const uncategorizedItems = menuItems.filter(item => !item.category_id);
   
+  const formatPrice = (n: number) => `₹${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
+  // One card for every dish: a compact row on phones (photo left), a photo-on-top card from sm up
+  const renderItem = (item: MenuItem) => (
+    <Card key={item.id} className="flex sm:block overflow-hidden border-0 shadow-md hover:shadow-xl rounded-2xl transition-all duration-300">
+      <div className="relative w-28 flex-shrink-0 self-stretch min-h-28 sm:w-auto sm:h-48 overflow-hidden bg-orange-50 dark:bg-zinc-800">
+        {item.image_url ? (
+          <DishPhoto url={item.image_url} widths={[240, 400, 800]} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 112px" alt={item.name} />
+        ) : (
+          <img src="/placeholder.svg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+        )}
+        {item.is_bestseller && <BestsellerBadge className="absolute top-2 left-2 hidden sm:block" />}
+        <div className="absolute top-2 right-2 hidden sm:flex gap-1.5">
+          {item.has_size_variants && <div className="px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-500 text-white">Sizes</div>}
+          <div className={`px-3 py-1 rounded-full text-xs font-semibold ${item.is_available ? "bg-accent text-accent-foreground" : "bg-destructive text-destructive-foreground"}`}>
+            {item.is_available ? "Available" : "Unavailable"}
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col p-3 sm:p-6 gap-1.5 sm:gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <h4 className="flex items-start gap-1.5 min-w-0 text-[15px] sm:text-lg font-semibold leading-snug">
+            <VegMark isVeg={item.is_veg} className="mt-1 flex-shrink-0" />
+            <span className="line-clamp-2 break-words">{item.name}</span>
+          </h4>
+          <div className="text-right flex-shrink-0">
+            {item.has_size_variants && item.size_variants?.length > 0 ? (
+              <div className="flex flex-col items-end">
+                {item.size_variants.map((v, i) => (
+                  <span key={i} className="text-xs sm:text-sm whitespace-nowrap">
+                    <span className="text-muted-foreground">{v.name}:</span> <span className="text-primary font-semibold">{formatPrice(v.price)}</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="text-primary font-semibold sm:text-lg whitespace-nowrap">{formatPrice(item.price)}</span>
+            )}
+          </div>
+        </div>
+        {item.description && <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-none">{item.description}</p>}
+        {/* On phones the photo is too small for badges, so they sit here */}
+        {(item.is_bestseller || item.has_size_variants) && (
+          <div className="flex sm:hidden flex-wrap gap-1.5">
+            {item.is_bestseller && <BestsellerBadge />}
+            {item.has_size_variants && <span className="px-2 rounded-full text-[10.5px] font-semibold bg-violet-100 text-violet-700">Sizes</span>}
+          </div>
+        )}
+        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+          <label className="flex items-center gap-2 text-xs sm:text-sm">
+            <Switch checked={item.is_available} onCheckedChange={() => toggleAvailability(item)} />
+            {item.is_available ? "Available" : "Unavailable"}
+          </label>
+          <div className="flex -mr-2">
+            <Button size="icon" variant="ghost" aria-label="Edit" onClick={() => openEditDialog(item)}>
+              <Edit2 className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" aria-label="Delete" onClick={() => deleteItem(item.id)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+
   return (
     <div className="space-y-6">
       {/* Skeleton loading state */}
@@ -454,7 +519,7 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
           </div>
           <Skeleton className="h-20 w-full rounded-2xl" />
           <Skeleton className="h-8 w-32 rounded-xl" />
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map(i => (
               <div key={i} className="rounded-2xl overflow-hidden border-0 shadow-md">
                 <Skeleton className="h-48 w-full" />
@@ -486,7 +551,7 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
             Add and manage your menu items and categories
           </p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+        <div className="grid grid-cols-3 sm:flex gap-2 w-full sm:w-auto">
           {/* AI Import Button */}
           <Dialog open={aiImportOpen} onOpenChange={setAiImportOpen}>
             <DialogTrigger asChild>
@@ -789,80 +854,8 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
         groupedItems[category.id]?.length > 0 && (
           <div key={category.id} className="space-y-4">
             <h3 className="text-xl md:text-2xl font-extrabold tracking-tight capitalize text-zinc-900 dark:text-white">{category.name}</h3>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {groupedItems[category.id].map((item) => (
-                <Card key={item.id} className="overflow-hidden border-0 shadow-md hover:shadow-xl rounded-2xl transition-all duration-300">
-                  <div className="relative h-48 overflow-hidden">
-                    {item.image_url ? (
-                      <DishPhoto url={item.image_url} widths={[400, 800]} sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw" alt={item.name} />
-                    ) : (
-                      <img src="/placeholder.svg" alt={item.name} className="w-full h-full object-cover" />
-                    )}
-                    {item.is_bestseller && <BestsellerBadge className="absolute top-2 left-2" />}
-                    <div className="absolute top-2 right-2 flex gap-1.5">
-                      {item.has_size_variants && (
-                        <div className="px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-500 text-white">
-                          Sizes
-                        </div>
-                      )}
-                      <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        item.is_available 
-                          ? "bg-accent text-accent-foreground" 
-                          : "bg-destructive text-destructive-foreground"
-                      }`}>
-                        {item.is_available ? "Available" : "Unavailable"}
-                      </div>
-                    </div>
-                  </div>
-                  <CardHeader>
-                    <CardTitle className="flex justify-between items-start">
-                      <span className="flex items-start gap-1.5"><VegMark isVeg={item.is_veg} className="mt-1" />{item.name}</span>
-                      <div className="text-right">
-                        {item.has_size_variants && item.size_variants?.length > 0 ? (
-                          <div className="flex flex-col items-end gap-0.5">
-                            {item.size_variants.map((v, i) => (
-                              <span key={i} className="text-sm">
-                                <span className="text-muted-foreground">{v.name}:</span>{" "}
-                                <span className="text-primary font-semibold">₹{v.price}</span>
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-primary">₹{item.price.toFixed(2)}</span>
-                        )}
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">{item.description}</p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={item.is_available}
-                          onCheckedChange={() => toggleAvailability(item)}
-                        />
-                        <span className="text-sm">Available</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => openEditDialog(item)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => deleteItem(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="grid gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {groupedItems[category.id].map(renderItem)}
             </div>
           </div>
         )
@@ -871,80 +864,8 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
       {uncategorizedItems.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-2xl font-bold">Uncategorized</h3>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {uncategorizedItems.map((item) => (
-              <Card key={item.id} className="overflow-hidden border-0 shadow-md hover:shadow-xl rounded-2xl transition-all duration-300">
-                <div className="relative h-48 overflow-hidden">
-                  {item.image_url ? (
-                    <DishPhoto url={item.image_url} widths={[400, 800]} sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw" alt={item.name} />
-                  ) : (
-                    <img src="/placeholder.svg" alt={item.name} className="w-full h-full object-cover" />
-                  )}
-                  {item.is_bestseller && <BestsellerBadge className="absolute top-2 left-2" />}
-                  <div className="absolute top-2 right-2 flex gap-1.5">
-                    {item.has_size_variants && (
-                      <div className="px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-500 text-white">
-                        Sizes
-                      </div>
-                    )}
-                    <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      item.is_available 
-                        ? "bg-accent text-accent-foreground" 
-                        : "bg-destructive text-destructive-foreground"
-                    }`}>
-                      {item.is_available ? "Available" : "Unavailable"}
-                    </div>
-                  </div>
-                </div>
-                <CardHeader>
-                  <CardTitle className="flex justify-between items-start">
-                    <span className="flex items-start gap-1.5"><VegMark isVeg={item.is_veg} className="mt-1" />{item.name}</span>
-                    <div className="text-right">
-                      {item.has_size_variants && item.size_variants?.length > 0 ? (
-                        <div className="flex flex-col items-end gap-0.5">
-                          {item.size_variants.map((v, i) => (
-                            <span key={i} className="text-sm">
-                              <span className="text-muted-foreground">{v.name}:</span>{" "}
-                              <span className="text-primary font-semibold">₹{v.price}</span>
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-primary">₹{item.price.toFixed(2)}</span>
-                      )}
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">{item.description}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={item.is_available}
-                        onCheckedChange={() => toggleAvailability(item)}
-                      />
-                      <span className="text-sm">Available</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => openEditDialog(item)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => deleteItem(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="grid gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {uncategorizedItems.map(renderItem)}
           </div>
         </div>
       )}

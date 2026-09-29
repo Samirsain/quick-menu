@@ -533,7 +533,8 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
               </button>
             )}
           </div>
-          <div className="flex gap-2">
+          {/* Scrolls sideways on narrow phones instead of cutting off "All Time" */}
+          <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <Button
               variant={dateFilter === 'today' ? 'default' : 'outline'}
               size="sm"
@@ -645,18 +646,18 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                       <div className="text-right">
                         <p className="text-xl md:text-2xl font-bold text-primary">
                           ₹{group.totalPrice.toFixed(0)}
                         </p>
                         {!group.allCompleted && (
-                          <Badge className={getStatusColor('preparing')} variant="outline">
+                          <Badge className={`${getStatusColor('preparing')} whitespace-nowrap`} variant="outline">
                             In Progress
                           </Badge>
                         )}
                         {group.allCompleted && (
-                          <Badge className={getStatusColor('completed')} variant="outline">
+                          <Badge className={`${getStatusColor('completed')} whitespace-nowrap`} variant="outline">
                             Completed
                           </Badge>
                         )}

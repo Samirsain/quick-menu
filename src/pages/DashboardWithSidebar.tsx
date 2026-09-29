@@ -18,8 +18,11 @@ import {
   X,
   User,
   FileText,
-  ChefHat
+  ChefHat,
+  Download,
+  MoreHorizontal,
 } from "lucide-react";
+import { InstallAppButton } from "@/components/InstallAppButton";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
@@ -83,7 +86,11 @@ const DashboardWithSidebar = () => {
   const [lastNewOrder, setLastNewOrder] = useState<Order | null>(null);
   const [lastViewCount, setLastViewCount] = useState(0);
   const [isRestaurantDisabled, setIsRestaurantDisabled] = useState(false);
-  const [activeTab, setActiveTab] = useState("stats");
+  // The tab lives in the URL (?tab=orders) so refresh/back keep it and app shortcuts can open a tab directly
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab && TABS.includes(tab) ? tab : "stats";
+  });
   const [open, setOpen] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const soundIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -94,9 +101,10 @@ const DashboardWithSidebar = () => {
 
   // Helper to handle tab change and close mobile sidebar
   const handleTabChange = (tab: string) => {
+    setOpen(false); // Close mobile sidebar
     if (tab === activeTab) return;
     setActiveTab(tab);
-    setOpen(false); // Close mobile sidebar
+    window.history.replaceState(null, "", tab === "stats" ? "/dashboard" : `/dashboard?tab=${tab}`);
   };
 
   const links = [
@@ -846,7 +854,15 @@ const DashboardWithSidebar = () => {
       )}
 
       <Sidebar open={open} setOpen={setOpen} animate={false}>
-        <SidebarBody className="justify-between gap-10">
+        <SidebarBody
+          className="justify-between gap-10"
+          mobileTitle={links.find(l => l.href === `#${activeTab}`)?.label ?? "Dashboard"}
+          mobileActions={
+            <InstallAppButton className="h-10 w-10 flex items-center justify-center rounded-full text-neutral-700 dark:text-neutral-200 active:bg-neutral-200 dark:active:bg-neutral-700">
+              <Download className="h-5 w-5" aria-label="Install app" />
+            </InstallAppButton>
+          }
+        >
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none]">
             <Logo name={restaurantName} logo={restaurantLogo} />
             <div className="mt-6 flex flex-col gap-1">
@@ -866,6 +882,9 @@ const DashboardWithSidebar = () => {
             </div>
           </div>
           <div className="space-y-2">
+            <InstallAppButton className="w-full flex items-center justify-start gap-2 py-2 px-2 rounded-lg text-sm text-neutral-700 dark:text-neutral-200 hover:bg-white/60 dark:hover:bg-neutral-700/50 transition-colors">
+              <Download className="h-5 w-5 flex-shrink-0" /> Install app
+            </InstallAppButton>
             {/* Policy Links */}
             <Link
               to="/terms"
@@ -952,9 +971,45 @@ const DashboardWithSidebar = () => {
         newOrderTrigger={lastNewOrder}
         onNewServiceCall={handleNewServiceCall}
       />
+
+      {/* Phone: app-style tab bar for the pages used all day; "More" opens the full menu */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-neutral-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)]">
+        <div className="grid grid-cols-5">
+          {[
+            { tab: "stats", label: "Home", Icon: BarChart3 },
+            { tab: "orders", label: "Orders", Icon: Package, badge: newOrdersCount, onPick: () => setNewOrdersCount(0) },
+            { tab: "menu", label: "Menu", Icon: MenuIcon },
+            { tab: "service-calls", label: "Calls", Icon: Bell, badge: serviceCallsCount, onPick: () => setServiceCallsCount(0) },
+          ].map(({ tab, label, Icon, badge, onPick }) => {
+            const active = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => { handleTabChange(tab); onPick?.(); }}
+                className={cn("relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium", active ? "text-orange-600 dark:text-orange-400" : "text-neutral-500 dark:text-neutral-400")}
+              >
+                <span className={cn("flex h-8 w-14 items-center justify-center rounded-full transition-colors", active && "bg-orange-100 dark:bg-orange-500/15")}>
+                  <Icon className="h-5 w-5" />
+                </span>
+                {label}
+                {!!badge && (
+                  <span className="absolute top-1.5 left-1/2 ml-2 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-semibold flex items-center justify-center">{badge}</span>
+                )}
+              </button>
+            );
+          })}
+          <button type="button" onClick={() => setOpen(true)} className="flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium text-neutral-500 dark:text-neutral-400">
+            <span className="flex h-8 w-14 items-center justify-center rounded-full"><MoreHorizontal className="h-5 w-5" /></span>
+            More
+          </button>
+        </div>
+      </nav>
     </div>
   );
 };
+
+const TABS = ["stats", "menu", "orders", "service-calls", "feedback", "social", "qr", "profile"];
 
 const Logo = ({ name, logo }: { name: string; logo: string | null }) => {
   return (
@@ -993,7 +1048,7 @@ const Dashboard = ({
   console.log('🎨 Dashboard render:', { activeTab, hasNewOrder: !!newOrderTrigger });
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="p-4 md:p-8 lg:p-10 md:rounded-tl-2xl border-t md:border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex-1 w-full overflow-y-auto">
+      <div className="p-4 pb-28 md:p-8 lg:p-10 md:rounded-tl-2xl border-t md:border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex-1 w-full overflow-y-auto">
         {/* Centered content container with max-width */}
         <div className="max-w-6xl mx-auto w-full">
           <motion.div key={`top-${activeTab}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>

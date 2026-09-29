@@ -643,17 +643,17 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
                               </Button>
                             </motion.div>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-2">Each scan creates a 90-minute session</p>
+                          <p className="text-xs text-muted-foreground mt-2">Each scan starts a 4-hour menu session</p>
                         </CardContent>
                       </Card>
                       <Card className="border-0 shadow-md rounded-2xl">
                         <CardContent className="p-5">
                           <h3 className="font-semibold text-sm mb-3">Quick Tips</h3>
                           <ul className="space-y-1.5 text-sm text-muted-foreground">
-                            <li>� Print on white paper for best contrast</li>
-                            <li>� Minimum 2�2 inches for table placement</li>
-                            <li>� Test scan before printing in bulk</li>
-                            <li>� Place in well-lit, visible areas</li>
+                            <li>• Print on white paper for best contrast</li>
+                            <li>• Minimum 2 × 2 inches for table placement</li>
+                            <li>• Test scan before printing in bulk</li>
+                            <li>• Place in well-lit, visible areas</li>
                           </ul>
                         </CardContent>
                       </Card>
@@ -691,7 +691,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
                       </motion.div>
                     </div>
                     <p className="text-xs text-muted-foreground font-medium">
-                      Currently: {locationLabel}s 1�{tableConfig.total} ({activeTableNumbers.length} active)
+                      Currently: {locationLabel}s 1–{tableConfig.total} ({activeTableNumbers.length} active)
                     </p>
                   </div>
 

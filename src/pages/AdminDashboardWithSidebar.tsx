@@ -247,7 +247,7 @@ const AdminDashboardWithSidebar = () => {
       )}
     >
       <Sidebar open={open} setOpen={setOpen} animate={false}>
-        <SidebarBody className="justify-between gap-10">
+        <SidebarBody className="justify-between gap-10" mobileTitle="Admin Panel">
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none]">
             <Logo />
             <div className="mt-6 flex flex-col gap-1">
@@ -515,8 +515,40 @@ const AdminContent = ({
               </div>
             </Card>
 
-            {/* Restaurant Table */}
-            <Card className="overflow-x-auto">
+            {/* Phones: one card per restaurant, so the on/off switch is always visible */}
+            <div className="md:hidden space-y-3">
+              {isLoading ? (
+                <Card className="p-6 text-center text-muted-foreground">Loading...</Card>
+              ) : restaurants.length === 0 ? (
+                <Card className="p-6 text-center text-muted-foreground">No restaurants found</Card>
+              ) : (
+                restaurants.map((restaurant: Restaurant) => (
+                  <Card key={restaurant.id} className="p-4">
+                    <div className="flex items-center gap-3">
+                      {restaurant.logo_url ? (
+                        <img src={restaurant.logo_url} alt="" className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">🍽️</div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold truncate">{restaurant.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{restaurant.email}</div>
+                        <div className="text-xs text-muted-foreground">{restaurant.phone || "No phone"} · Joined {new Date(restaurant.created_at).toLocaleDateString()}</div>
+                      </div>
+                      <Switch checked={restaurant.is_active} onCheckedChange={() => handleToggleStatus(restaurant)} aria-label={restaurant.is_active ? "Disable restaurant" : "Enable restaurant"} />
+                    </div>
+                    <div className="mt-3">
+                      <Badge variant={restaurant.is_active ? "default" : "destructive"}>
+                        {restaurant.is_active ? <><Power className="h-3 w-3 mr-1" />Active</> : <><PowerOff className="h-3 w-3 mr-1" />Disabled</>}
+                      </Badge>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+
+            {/* Restaurant Table (tablet and up) */}
+            <Card className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
