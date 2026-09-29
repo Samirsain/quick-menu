@@ -1,6 +1,12 @@
-# Quick Menu Dish 🍽️
+# QuickMenu 🍽️
 
 A modern, real-time restaurant menu and ordering system built with React, TypeScript, and Supabase.
+
+![QuickMenu home page](docs/landing.jpg)
+
+**Demo video:** [watch it here](public/quickmenu-demo.mp4). A guest scans the table QR, places an order, the kitchen accepts it, and the guest sees it ready.
+
+[![QuickMenu demo video](public/quickmenu-demo.jpg)](public/quickmenu-demo.mp4)
 
 ## ⚡ Quick Start
 
