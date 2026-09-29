@@ -1,0 +1,155 @@
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Instagram, Facebook, Twitter, Globe, Edit2, Star } from "lucide-react";
+
+interface Props {
+  restaurantId: string;
+}
+
+interface SocialLinks {
+  instagram?: string;
+  facebook?: string;
+  twitter?: string;
+  website?: string;
+  google_review?: string;
+}
+
+const SocialLinksForm = ({ restaurantId }: Props) => {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [links, setLinks] = useState<SocialLinks>({});
+
+  const formatINR = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value);
+
+  useEffect(() => {
+    fetchLinks();
+  }, [restaurantId]);
+
+  const fetchLinks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("restaurants")
+        .select("social_links")
+        .eq("id", restaurantId)
+        .maybeSingle();
+      if (!error && data?.social_links) setLinks(data.social_links as SocialLinks);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Links are shown to customers, so only allow real https URLs (blocks javascript: etc.)
+    const bad = Object.values(links).find(v => v && !/^https:\/\//i.test(v.trim()));
+    if (bad) {
+      toast({ title: "Invalid link", description: `Links must start with https:// — "${bad}"`, variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("restaurants")
+        .update({ social_links: links as any })
+        .eq("id", restaurantId);
+      if (error) throw error;
+      toast({ title: "Social links updated" });
+      setOpen(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const hasAny = links.instagram || links.facebook || links.twitter || links.website || links.google_review;
+
+  if (initialLoading) {
+    return (
+      <Card className="shadow-md rounded-2xl border-0 overflow-hidden">
+        <CardHeader className="p-5">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-9 w-16 rounded-md" />
+          </div>
+        </CardHeader>
+        <CardContent className="p-5 pt-0">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-5 w-5 rounded-full" />
+            <Skeleton className="h-5 w-5 rounded-full" />
+            <Skeleton className="h-5 w-5 rounded-full" />
+            <Skeleton className="h-5 w-5 rounded-full" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="shadow-md rounded-2xl border-0 overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between p-5">
+        <CardTitle className="text-base">Social Media</CardTitle>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="h-9"><Edit2 className="h-4 w-4 mr-2"/>Edit</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-lg">Update Social Links</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSave} className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm">Instagram</Label>
+                <Input value={links.instagram || ''} onChange={e => setLinks({ ...links, instagram: e.target.value })} placeholder="https://instagram.com/yourpage" className="h-10" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Facebook</Label>
+                <Input value={links.facebook || ''} onChange={e => setLinks({ ...links, facebook: e.target.value })} placeholder="https://facebook.com/yourpage" className="h-10" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Twitter</Label>
+                <Input value={links.twitter || ''} onChange={e => setLinks({ ...links, twitter: e.target.value })} placeholder="https://twitter.com/yourpage" className="h-10" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Website</Label>
+                <Input value={links.website || ''} onChange={e => setLinks({ ...links, website: e.target.value })} placeholder="https://yourwebsite.com" className="h-10" />
+              </div>
+              <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20 p-3">
+                <Label className="text-sm flex items-center gap-1.5"><Star className="h-4 w-4 text-amber-500 fill-amber-500" />Google Review Link</Label>
+                <Input value={links.google_review || ''} onChange={e => setLinks({ ...links, google_review: e.target.value })} placeholder="https://g.page/r/your-place/review" className="h-10 bg-white dark:bg-background" />
+                <p className="text-xs text-muted-foreground">
+                  Google Business Profile → "Ask for reviews" → copy link. Customers see a "Review us on Google" button after their order is served.
+                </p>
+              </div>
+              <Button type="submit" className="w-full h-10" disabled={loading}>{loading ? 'Saving...' : 'Save'}</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent className="p-5 pt-0">
+        {hasAny ? (
+          <div className="flex items-center gap-4 text-muted-foreground">
+            {links.instagram && <a href={links.instagram} target="_blank" rel="noreferrer" aria-label="Instagram"><Instagram className="h-5 w-5 hover:text-primary transition-colors"/></a>}
+            {links.facebook && <a href={links.facebook} target="_blank" rel="noreferrer" aria-label="Facebook"><Facebook className="h-5 w-5 hover:text-primary transition-colors"/></a>}
+            {links.twitter && <a href={links.twitter} target="_blank" rel="noreferrer" aria-label="Twitter"><Twitter className="h-5 w-5 hover:text-primary transition-colors"/></a>}
+            {links.website && <a href={links.website} target="_blank" rel="noreferrer" aria-label="Website"><Globe className="h-5 w-5 hover:text-primary transition-colors"/></a>}
+            {links.google_review && <a href={links.google_review} target="_blank" rel="noreferrer" aria-label="Google reviews"><Star className="h-5 w-5 hover:text-primary transition-colors"/></a>}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No links yet. Click Edit to add.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default SocialLinksForm;

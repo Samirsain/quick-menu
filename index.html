@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+    <title>AddMenu - QR Menu & Ordering System</title>
+    <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
+    <link rel="apple-touch-icon" href="/favicon.jpg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- OneSignal Push Notifications -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      console.log('🔔 OneSignal script loading...');
+      
+      // Only initialize OneSignal on production domain (addmenu.site)
+      const isProductionDomain = window.location.hostname === 'addmenu.site' || 
+                                  window.location.hostname.endsWith('.addmenu.site');
+      
+      if (isProductionDomain) {
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        OneSignalDeferred.push(async function(OneSignal) {
+          console.log('🔔 OneSignal initializing...');
+          try {
+            await OneSignal.init({
+              appId: "4d95ee74-a8c3-465f-9a2f-629f5ff98700",
+              allowLocalhostAsSecureOrigin: true,
+              serviceWorkerPath: "/OneSignalSDKWorker.js",
+              // Prompt settings
+              promptOptions: {
+                slidedown: {
+                  prompts: [{
+                    type: "push",
+                    autoPrompt: false, // We'll prompt manually in dashboard
+                    text: {
+                      actionMessage: "Get notified when new orders come in!",
+                      acceptButton: "Allow",
+                      cancelButton: "Later"
+                    }
+                  }]
+                }
+              },
+              // Notification settings
+              notifyButton: {
+                enable: false, // We handle this in dashboard
+              },
+              // Welcome notification
+              welcomeNotification: {
+                title: "AddMenu Notifications",
+                message: "You'll now receive order alerts!"
+              }
+            });
+            
+            console.log('✅ OneSignal initialized successfully!');
+            
+            // Log current state
+            const permission = await OneSignal.Notifications.permission;
+            console.log('🔔 Current permission:', permission);
+          } catch (error) {
+            console.error('❌ OneSignal initialization error:', error);
+          }
+        });
+      } else {
+        console.log('⚠️ OneSignal skipped - only runs on addmenu.site (current:', window.location.hostname, ')');
+      }
+    </script>
+    <meta name="description" content="Modern QR ordering system for restaurants. Contactless menu browsing, real-time order tracking, and customer feedback." />
+    <meta name="author" content="AddMenu" />
+
+    <meta property="og:title" content="AddMenu - QR Menu & Ordering System" />
+    <meta property="og:description" content="Modern QR ordering system for restaurants. Contactless menu browsing, real-time order tracking, and customer feedback." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-image.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@QuickMenuDish" />
+    <meta name="twitter:image" content="/og-image.png" />
+    
+    <!-- Razorpay SDK - Load directly for better reliability -->
+    <link rel="preconnect" href="https://checkout.razorpay.com" />
+    <link rel="dns-prefetch" href="https://checkout.razorpay.com" />
+    <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

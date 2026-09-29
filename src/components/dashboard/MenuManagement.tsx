@@ -1,0 +1,1010 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Edit2, Trash2, FolderPlus, Loader2, AlertCircle, ScanSearch } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { uploadImage as uploadToCloudinary, validateFile, deleteImage, isHostedImage } from "@/lib/imageUpload";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import AIMenuImport from "./AIMenuImport";
+import { VegMark, BestsellerBadge } from "@/components/FoodBadges";
+
+interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+  is_available: boolean;
+  category_id: string | null;
+  has_size_variants: boolean;
+  size_variants: { name: string; price: number }[];
+  is_veg: boolean | null;
+  is_bestseller: boolean;
+}
+
+interface SizeVariant {
+  name: string;
+  price: number;
+}
+
+interface MenuCategory {
+  id: string;
+  name: string;
+  display_order: number;
+}
+
+interface MenuManagementProps {
+  restaurantId: string;
+}
+
+const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
+  const { toast } = useToast();
+  const { menuItemLimit, isPremiumPlan } = useSubscription();
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [aiImportOpen, setAiImportOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    price: "",
+    category_id: "",
+    has_size_variants: false,
+    is_veg: null as boolean | null,
+    is_bestseller: false,
+    size_variants: [
+      { name: "Half", price: "" },
+      { name: "Full", price: "" }
+    ] as { name: string; price: string }[],
+  });
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchMenuItems(), fetchCategories()]);
+      setLoading(false);
+    };
+    loadData();
+  }, [restaurantId]);
+
+  const fetchMenuItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("menu_items")
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setMenuItems(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to load menu items",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("menu_categories")
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to load categories",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    
+    try {
+      const { error } = await supabase
+        .from("menu_categories")
+        .insert([{
+          restaurant_id: restaurantId,
+          name: newCategoryName,
+          display_order: categories.length
+        }]);
+
+      if (error) throw error;
+      toast({ title: "Category added successfully" });
+      setNewCategoryName("");
+      setCategoryDialogOpen(false);
+      fetchCategories();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteCategory = async (id: string) => {
+    if (!confirm("Delete this category? Items in it will become uncategorized.")) return;
+
+    try {
+      const { error } = await supabase
+        .from("menu_categories")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      toast({ title: "Category deleted" });
+      fetchCategories();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to delete category",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check if it's an image
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file",
+        description: "Please upload an image file",
+        variant: "destructive",
+      });
+      e.currentTarget.value = "";
+      return;
+    }
+
+    // Check max size before compression (5MB)
+    const MAX_ORIGINAL_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_ORIGINAL_SIZE) {
+      toast({
+        title: "Image too large",
+        description: "Please upload an image under 5MB",
+        variant: "destructive",
+      });
+      e.currentTarget.value = "";
+      return;
+    }
+
+    try {
+      // Import compression function
+      const { compressImage } = await import("@/lib/imageOptimization");
+      
+      toast({
+        title: "Optimizing image...",
+        description: "Compressing for best quality and size",
+      });
+
+      // Compress image for menu items (target: 80KB, high quality)
+      const compressedFile = await compressImage(file, 'menu');
+      
+      setImageFile(compressedFile);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(compressedFile);
+
+      toast({
+        title: "Image optimized!",
+        description: `Reduced to ${(compressedFile.size / 1024).toFixed(0)}KB with excellent quality`,
+      });
+    } catch (error) {
+      console.error('Image compression error:', error);
+      toast({
+        title: "Compression failed",
+        description: "Using original image",
+        variant: "destructive",
+      });
+      // Fallback to original
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImage = async (file: File): Promise<string> => {
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    try {
+      // Upload to Cloudinary
+      const result = await uploadToCloudinary(
+        file,
+        "menu-items",
+        (progress) => setUploadProgress(progress)
+      );
+      
+      if (!result.success || !result.publicUrl) {
+        throw new Error(result.error || "Upload failed");
+      }
+      
+      return result.publicUrl;
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      let imageUrl = editingItem?.image_url || "";
+      const oldImageUrl = editingItem?.image_url;
+
+      if (imageFile) {
+        imageUrl = await uploadImage(imageFile);
+      }
+
+      // Process size variants - filter out empty prices and convert to numbers
+      const processedSizeVariants = formData.has_size_variants
+        ? formData.size_variants
+            .filter(v => v.name.trim() && v.price.trim())
+            .map(v => ({ name: v.name.trim(), price: parseFloat(v.price) }))
+        : [];
+
+      const itemData = {
+        restaurant_id: restaurantId,
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        image_url: imageUrl,
+        is_available: editingItem ? editingItem.is_available : true,
+        category_id: formData.category_id || null,
+        has_size_variants: formData.has_size_variants,
+        size_variants: processedSizeVariants,
+        is_veg: formData.is_veg,
+        is_bestseller: formData.is_bestseller,
+      };
+
+      if (editingItem) {
+        const { error } = await supabase
+          .from("menu_items")
+          .update(itemData)
+          .eq("id", editingItem.id);
+
+        if (error) throw error;
+
+        // Delete old image from Cloudinary if a new image was uploaded
+        if (imageFile && oldImageUrl && oldImageUrl !== imageUrl && isHostedImage(oldImageUrl)) {
+          deleteImage(oldImageUrl).then(result => {
+            if (result.success) {
+              console.log("✅ Old image deleted from Cloudinary:", oldImageUrl);
+            } else {
+              console.warn("⚠️ Failed to delete old image from Cloudinary:", result.error);
+            }
+          });
+        }
+
+        toast({ title: "Menu item updated successfully" });
+      } else {
+        const { error } = await supabase
+          .from("menu_items")
+          .insert([itemData]);
+
+        if (error) throw error;
+        toast({ title: "Menu item added successfully" });
+      }
+
+      setDialogOpen(false);
+      resetForm();
+      fetchMenuItems();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleAvailability = async (item: MenuItem) => {
+    try {
+      const { error } = await supabase
+        .from("menu_items")
+        .update({ is_available: !item.is_available })
+        .eq("id", item.id);
+
+      if (error) throw error;
+      fetchMenuItems();
+      toast({ 
+        title: item.is_available ? "Item disabled" : "Item enabled",
+        description: `${item.name} is now ${!item.is_available ? "available" : "unavailable"}`
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update availability",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteItem = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this item?")) return;
+
+    try {
+      // Find the item to get its image URL before deleting
+      const itemToDelete = menuItems.find(item => item.id === id);
+      const imageUrl = itemToDelete?.image_url;
+
+      // Delete from database first
+      const { error } = await supabase
+        .from("menu_items")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      // Delete image from Cloudinary storage (fire and forget - don't block on this)
+      if (imageUrl && isHostedImage(imageUrl)) {
+        deleteImage(imageUrl).then(result => {
+          if (result.success) {
+            console.log("✅ Image deleted from Cloudinary:", imageUrl);
+          } else {
+            console.warn("⚠️ Failed to delete image from Cloudinary:", result.error);
+          }
+        });
+      }
+
+      toast({ title: "Menu item deleted" });
+      fetchMenuItems();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to delete item",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({ 
+      name: "", 
+      description: "", 
+      price: "", 
+      category_id: "",
+      has_size_variants: false,
+      is_veg: null,
+      is_bestseller: false,
+      size_variants: [
+        { name: "Half", price: "" },
+        { name: "Full", price: "" }
+      ],
+    });
+    setImageFile(null);
+    setImagePreview("");
+    setEditingItem(null);
+  };
+
+  const openEditDialog = (item: MenuItem) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name,
+      description: item.description,
+      price: item.price.toString(),
+      category_id: item.category_id || "",
+      has_size_variants: item.has_size_variants || false,
+      is_veg: item.is_veg ?? null,
+      is_bestseller: !!item.is_bestseller,
+      size_variants: item.has_size_variants && item.size_variants?.length > 0
+        ? item.size_variants.map(v => ({ name: v.name, price: v.price.toString() }))
+        : [
+            { name: "Half", price: "" },
+            { name: "Full", price: "" }
+          ],
+    });
+    setImagePreview(item.image_url);
+    setDialogOpen(true);
+  };
+
+  const groupedItems = categories.reduce((acc, category) => {
+    acc[category.id] = menuItems.filter(item => item.category_id === category.id);
+    return acc;
+  }, {} as Record<string, MenuItem[]>);
+  
+  const uncategorizedItems = menuItems.filter(item => !item.category_id);
+  
+  // Check if menu item limit is reached (Advanced plan = 50 items)
+  const isAtLimit = !isPremiumPlan && menuItems.length >= menuItemLimit;
+  const remainingItems = isPremiumPlan ? Infinity : Math.max(0, menuItemLimit - menuItems.length);
+
+  const handleAddItemClick = () => {
+    if (isAtLimit) {
+      toast({
+        title: "Menu item limit reached",
+        description: "Upgrade to Premium for unlimited menu items",
+        variant: "destructive",
+      });
+      return;
+    }
+    setDialogOpen(true);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Skeleton loading state */}
+      {loading && menuItems.length === 0 ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-52 rounded-xl" />
+              <Skeleton className="h-4 w-80 rounded-lg" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-24 rounded-xl" />
+              <Skeleton className="h-10 w-24 rounded-xl" />
+              <Skeleton className="h-10 w-20 rounded-xl" />
+            </div>
+          </div>
+          <Skeleton className="h-20 w-full rounded-2xl" />
+          <Skeleton className="h-8 w-32 rounded-xl" />
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="rounded-2xl overflow-hidden border-0 shadow-md">
+                <Skeleton className="h-48 w-full" />
+                <div className="p-4 space-y-3">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-5 w-36 rounded-lg" />
+                    <Skeleton className="h-5 w-16 rounded-lg" />
+                  </div>
+                  <Skeleton className="h-4 w-full rounded-lg" />
+                  <Skeleton className="h-4 w-3/4 rounded-lg" />
+                  <div className="flex justify-between pt-2">
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-8 w-8 rounded-lg" />
+                      <Skeleton className="h-8 w-8 rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+      <>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Menu Management</h2>
+          <p className="text-sm md:text-base text-muted-foreground">
+            Add and manage your menu items and categories
+            {!isPremiumPlan && (
+              <span className="ml-2 text-xs font-medium">
+                ({menuItems.length}/{menuItemLimit} items)
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+          {/* AI Import Button */}
+          <Dialog open={aiImportOpen} onOpenChange={setAiImportOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex-1 sm:flex-none text-xs sm:text-sm gap-1.5 border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-400 dark:hover:bg-violet-950/20">
+                <ScanSearch className="h-4 w-4" />
+                AI Import
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="sr-only">AI Menu Import</DialogTitle>
+              </DialogHeader>
+              <AIMenuImport
+                restaurantId={restaurantId}
+                onImportComplete={() => {
+                  setAiImportOpen(false);
+                  fetchMenuItems();
+                  fetchCategories();
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex-1 sm:flex-none text-xs sm:text-sm">
+                <FolderPlus className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Add </span>Category
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Category</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="category-name">Category Name</Label>
+                  <Input
+                    id="category-name"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="e.g., Starters, Main Courses, Desserts"
+                  />
+                </div>
+                <Button variant="hero" className="w-full" onClick={addCategory}>
+                  Add Category
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="hero" 
+                className="flex-1 sm:flex-none text-xs sm:text-sm"
+                onClick={(e) => {
+                  if (isAtLimit && !editingItem) {
+                    e.preventDefault();
+                    handleAddItemClick();
+                  }
+                }}
+              >
+                <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Add </span>Item
+              </Button>
+            </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editingItem ? "Edit Menu Item" : "Add New Menu Item"}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="image">Item Image <span className="text-xs text-muted-foreground">(optional, max 500KB)</span></Label>
+                <div className="flex flex-col gap-4">
+                  <Input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                  />
+                  {imagePreview && (
+                    <img 
+                      src={imagePreview} 
+                      alt="Preview" 
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Item Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  placeholder="e.g. Smoky grilled cottage cheese"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="price">Price (₹) *</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Food type + Bestseller */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Food Type</Label>
+                  <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1">
+                    {([
+                      { v: true, label: "Veg" },
+                      { v: false, label: "Non-veg" },
+                      { v: null, label: "None" },
+                    ] as const).map(({ v, label }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, is_veg: v })}
+                        className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold transition-all ${
+                          formData.is_veg === v ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {v !== null && <VegMark isVeg={v} className="h-3.5 w-3.5" />}
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-xl border p-3">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="bestseller" className="text-sm font-medium">Bestseller</Label>
+                    <p className="text-xs text-muted-foreground">Highlight on the menu</p>
+                  </div>
+                  <Switch
+                    id="bestseller"
+                    checked={formData.is_bestseller}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_bestseller: checked })}
+                  />
+                </div>
+              </div>
+
+              {/* Size Variants Section */}
+              <div className="space-y-3 p-4 rounded-xl bg-muted/50 border">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="size-variants" className="text-sm font-medium">Size Options</Label>
+                    <p className="text-xs text-muted-foreground">Enable Half/Full or custom size pricing</p>
+                  </div>
+                  <Switch
+                    id="size-variants"
+                    checked={formData.has_size_variants}
+                    onCheckedChange={(checked) => setFormData({ ...formData, has_size_variants: checked })}
+                  />
+                </div>
+                
+                {formData.has_size_variants && (
+                  <div className="space-y-3 pt-3 border-t">
+                    {formData.size_variants.map((variant, index) => (
+                      <div key={index} className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <Input
+                            placeholder="Size name (e.g., Half)"
+                            value={variant.name}
+                            onChange={(e) => {
+                              const newVariants = [...formData.size_variants];
+                              newVariants[index].name = e.target.value;
+                              setFormData({ ...formData, size_variants: newVariants });
+                            }}
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="w-28">
+                          <Input
+                            type="number"
+                            placeholder="Price"
+                            value={variant.price}
+                            onChange={(e) => {
+                              const newVariants = [...formData.size_variants];
+                              newVariants[index].price = e.target.value;
+                              setFormData({ ...formData, size_variants: newVariants });
+                            }}
+                            className="h-9"
+                          />
+                        </div>
+                        {formData.size_variants.length > 2 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              const newVariants = formData.size_variants.filter((_, i) => i !== index);
+                              setFormData({ ...formData, size_variants: newVariants });
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    {formData.size_variants.length < 5 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => {
+                          setFormData({
+                            ...formData,
+                            size_variants: [...formData.size_variants, { name: "", price: "" }]
+                          });
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Size Option
+                      </Button>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      💡 When size options are enabled, customers will choose a size before adding to cart.
+                      The base price above will be used as default if no size is selected.
+                    </p>
+                  </div>
+                )}
+              </div>
+              {isUploading && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Uploading image... {uploadProgress}%
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              <Button type="submit" variant="hero" className="w-full" disabled={loading || isUploading}>
+                {loading || isUploading ? "Saving..." : editingItem ? "Update Item" : "Add Item"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+        </div>
+      </div>
+
+      {/* Menu item limit warning for Advanced plan */}
+      {!isPremiumPlan && remainingItems <= 10 && (
+        <Alert variant={isAtLimit ? "destructive" : "default"} className="border-orange-200 bg-orange-50">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {isAtLimit ? (
+              <>You've reached the 50 menu item limit. <a href="/menu-dashboard" className="font-medium text-orange-600 underline">Upgrade to Premium</a> for unlimited items.</>
+            ) : (
+              <>You have {remainingItems} menu items remaining. <a href="/menu-dashboard" className="font-medium text-orange-600 underline">Upgrade to Premium</a> for unlimited items.</>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {categories.length > 0 && (
+        <Card className="p-4 md:p-6 border-0 shadow-md rounded-2xl">
+          <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Categories</h3>
+          <div className="flex flex-wrap gap-2">
+            {categories.map(cat => {
+              const count = groupedItems[cat.id]?.length || 0;
+              return (
+                <div key={cat.id} className="flex items-center gap-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-2 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                  <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200 capitalize">{cat.name}</span>
+                  <span className="text-xs text-muted-foreground bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded-full font-medium">{count}</span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-950/30 rounded-full"
+                    onClick={() => deleteCategory(cat.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {categories.map(category => (
+        groupedItems[category.id]?.length > 0 && (
+          <div key={category.id} className="space-y-4">
+            <h3 className="text-xl md:text-2xl font-extrabold tracking-tight capitalize text-zinc-900 dark:text-white">{category.name}</h3>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {groupedItems[category.id].map((item) => (
+                <Card key={item.id} className="overflow-hidden border-0 shadow-md hover:shadow-xl rounded-2xl transition-all duration-300">
+                  <div className="relative h-48 overflow-hidden">
+                    <img 
+                      src={item.image_url || "/placeholder.svg"} 
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
+                    {item.is_bestseller && <BestsellerBadge className="absolute top-2 left-2" />}
+                    <div className="absolute top-2 right-2 flex gap-1.5">
+                      {item.has_size_variants && (
+                        <div className="px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-500 text-white">
+                          Sizes
+                        </div>
+                      )}
+                      <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        item.is_available 
+                          ? "bg-accent text-accent-foreground" 
+                          : "bg-destructive text-destructive-foreground"
+                      }`}>
+                        {item.is_available ? "Available" : "Unavailable"}
+                      </div>
+                    </div>
+                  </div>
+                  <CardHeader>
+                    <CardTitle className="flex justify-between items-start">
+                      <span className="flex items-start gap-1.5"><VegMark isVeg={item.is_veg} className="mt-1" />{item.name}</span>
+                      <div className="text-right">
+                        {item.has_size_variants && item.size_variants?.length > 0 ? (
+                          <div className="flex flex-col items-end gap-0.5">
+                            {item.size_variants.map((v, i) => (
+                              <span key={i} className="text-sm">
+                                <span className="text-muted-foreground">{v.name}:</span>{" "}
+                                <span className="text-primary font-semibold">₹{v.price}</span>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-primary">₹{item.price.toFixed(2)}</span>
+                        )}
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={item.is_available}
+                          onCheckedChange={() => toggleAvailability(item)}
+                        />
+                        <span className="text-sm">Available</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => openEditDialog(item)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => deleteItem(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )
+      ))}
+
+      {uncategorizedItems.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-2xl font-bold">Uncategorized</h3>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {uncategorizedItems.map((item) => (
+              <Card key={item.id} className="overflow-hidden border-0 shadow-md hover:shadow-xl rounded-2xl transition-all duration-300">
+                <div className="relative h-48 overflow-hidden">
+                  <img 
+                    src={item.image_url || "/placeholder.svg"} 
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                  />
+                  {item.is_bestseller && <BestsellerBadge className="absolute top-2 left-2" />}
+                  <div className="absolute top-2 right-2 flex gap-1.5">
+                    {item.has_size_variants && (
+                      <div className="px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-500 text-white">
+                        Sizes
+                      </div>
+                    )}
+                    <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      item.is_available 
+                        ? "bg-accent text-accent-foreground" 
+                        : "bg-destructive text-destructive-foreground"
+                    }`}>
+                      {item.is_available ? "Available" : "Unavailable"}
+                    </div>
+                  </div>
+                </div>
+                <CardHeader>
+                  <CardTitle className="flex justify-between items-start">
+                    <span className="flex items-start gap-1.5"><VegMark isVeg={item.is_veg} className="mt-1" />{item.name}</span>
+                    <div className="text-right">
+                      {item.has_size_variants && item.size_variants?.length > 0 ? (
+                        <div className="flex flex-col items-end gap-0.5">
+                          {item.size_variants.map((v, i) => (
+                            <span key={i} className="text-sm">
+                              <span className="text-muted-foreground">{v.name}:</span>{" "}
+                              <span className="text-primary font-semibold">₹{v.price}</span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-primary">₹{item.price.toFixed(2)}</span>
+                      )}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={item.is_available}
+                        onCheckedChange={() => toggleAvailability(item)}
+                      />
+                      <span className="text-sm">Available</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openEditDialog(item)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => deleteItem(item.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {menuItems.length === 0 && !loading && (
+        <Card className="p-12 text-center border-0 shadow-md rounded-2xl">
+          <p className="text-muted-foreground mb-4">No menu items yet</p>
+          <Button variant="hero" onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Your First Item
+          </Button>
+        </Card>
+      )}
+      </>
+      )}
+    </div>
+  );
+};
+
+export default MenuManagement;
