@@ -19,6 +19,8 @@ import ServiceCallButton from "@/components/ServiceCallButton";
 import { VegMark, BestsellerBadge } from "@/components/FoodBadges";
 import UpiPayCard from "@/components/UpiPayCard";
 import { celebrate } from "@/lib/celebrate";
+import { sizedImage } from "@/lib/imageUpload";
+import { DishPhoto } from "@/components/DishPhoto";
 import CountUp from "@/components/CountUp";
 import { useBusinessType } from "@/hooks/useBusinessType";
 
@@ -134,7 +136,7 @@ const CustomerMenu = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("restaurants")
-        .select("social_links, name, description, logo_url, is_active, email, phone, orders_enabled, waiter_call_enabled, upi_id")
+        .select("social_links, name, description, logo_url, cover_url, is_active, email, phone, orders_enabled, waiter_call_enabled, upi_id")
         .eq("id", restaurantId)
         .single();
       
@@ -803,7 +805,7 @@ const CustomerMenu = () => {
             const itemPrice = item.displayPrice ?? item.price;
             return (
               <motion.div key={cartKey} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-3.5 flex items-center gap-3">
-                {item.image_url && <img src={item.image_url} alt="" className="h-12 w-12 rounded-xl object-cover flex-shrink-0" />}
+                {item.image_url && <img src={sizedImage(item.image_url, 144)} alt="" className="h-12 w-12 rounded-xl object-cover flex-shrink-0" />}
                 <div className="flex-1 min-w-0">
                   <p className="font-display text-[16px] leading-snug truncate">{item.name}</p>
                   <p className="text-xs text-menu-muted mt-0.5">{item.selectedSize && <span>{item.selectedSize} · </span>}{formatINR(itemPrice)}</p>
@@ -888,7 +890,16 @@ const CustomerMenu = () => {
 
       {/* Hero */}
       <section ref={heroRef} className="relative overflow-hidden bg-menu-hero">
-        <img ref={heroImgRef} src={HERO_COVER} alt="" className="absolute inset-x-0 top-0 h-[115%] w-full object-cover object-[center_75%]" />
+        {/* The browser picks the smallest cover that fills the screen; object-cover fills the hero without stretching.
+            One <img> whose src changes (never swapped), so the GSAP parallax stays attached to it. */}
+        <img
+          ref={heroImgRef}
+          src={restaurant?.cover_url ? sizedImage(restaurant.cover_url, 1400) : DEFAULT_COVER}
+          srcSet={restaurant?.cover_url ? [800, 1400, 2200].map(w => `${sizedImage(restaurant.cover_url, w)} ${w}w`).join(", ") : undefined}
+          sizes="100vw"
+          alt=""
+          className={`absolute inset-x-0 top-0 h-[115%] w-full object-cover ${restaurant?.cover_url ? "object-center" : "object-[center_75%]"}`}
+        />
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/30 to-black/85" />
         <div className="relative max-w-6xl mx-auto px-4 lg:px-8">
           <div className="h-16 flex items-center justify-between">
@@ -1230,8 +1241,8 @@ const CustomerMenu = () => {
 // ---------- Presentational pieces ----------
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-// ponytail: one default cover for every restaurant; add a cover upload in Settings when owners ask for it
-const HERO_COVER = "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=1600&q=70&auto=format&fit=crop";
+// Shown until the owner uploads a cover photo in Settings. Served from our own origin so the CSP allows it.
+const DEFAULT_COVER = "/menu-cover.jpg";
 const SHEET = "max-w-md w-[94vw] p-0 gap-0 rounded-[28px] overflow-hidden border border-menu-line bg-menu-bg text-menu-ink shadow-[0_30px_80px_-20px_rgba(43,29,20,0.4)] z-[200]";
 const GLASS_LIGHT = "h-10 w-10 rounded-full bg-white/95 text-[#2B1D14] flex items-center justify-center shadow-sm active:scale-95 transition-transform";
 const GLASS_ACCENT = "relative h-10 w-10 rounded-full bg-menu-accent/55 backdrop-blur-md ring-1 ring-white/15 text-white flex items-center justify-center hover:bg-menu-accent/70 active:scale-95 transition";
@@ -1429,13 +1440,14 @@ const DishCard = ({ item, cartQty, onAdd, onUpdate, formatINR, getCartQtyBySize,
       <div className="flex min-h-[116px]">
         <div className="relative w-[118px] sm:w-[132px] flex-shrink-0 overflow-hidden bg-menu-tint">
           {item.image_url ? (
-            <img
+            <DishPhoto
               data-reveal-img
-              src={item.image_url}
+              url={item.image_url}
+              widths={[160, 320, 480]}
+              sizes="132px"
               alt={item.name}
-              loading="lazy"
               onLoad={() => setLoaded(true)}
-              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${loaded ? "opacity-100" : "opacity-0"}`}
+              className={`transition-opacity duration-700 ${loaded ? "opacity-100" : "opacity-0"}`}
             />
           ) : (
             <span className="absolute inset-0 flex items-center justify-center font-display text-4xl text-menu-accent/50">{item.name.charAt(0)}</span>

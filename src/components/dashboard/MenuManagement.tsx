@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { uploadImage as uploadToCloudinary, validateFile, deleteImage, isHostedImage } from "@/lib/imageUpload";
+import { DishPhoto } from "@/components/DishPhoto";
 import { Skeleton } from "@/components/ui/skeleton";
 import AIMenuImport from "./AIMenuImport";
 import { VegMark, BestsellerBadge } from "@/components/FoodBadges";
@@ -792,11 +793,11 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
               {groupedItems[category.id].map((item) => (
                 <Card key={item.id} className="overflow-hidden border-0 shadow-md hover:shadow-xl rounded-2xl transition-all duration-300">
                   <div className="relative h-48 overflow-hidden">
-                    <img 
-                      src={item.image_url || "/placeholder.svg"} 
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
+                    {item.image_url ? (
+                      <DishPhoto url={item.image_url} widths={[400, 800]} sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw" alt={item.name} />
+                    ) : (
+                      <img src="/placeholder.svg" alt={item.name} className="w-full h-full object-cover" />
+                    )}
                     {item.is_bestseller && <BestsellerBadge className="absolute top-2 left-2" />}
                     <div className="absolute top-2 right-2 flex gap-1.5">
                       {item.has_size_variants && (
@@ -874,11 +875,11 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
             {uncategorizedItems.map((item) => (
               <Card key={item.id} className="overflow-hidden border-0 shadow-md hover:shadow-xl rounded-2xl transition-all duration-300">
                 <div className="relative h-48 overflow-hidden">
-                  <img 
-                    src={item.image_url || "/placeholder.svg"} 
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                  />
+                  {item.image_url ? (
+                    <DishPhoto url={item.image_url} widths={[400, 800]} sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw" alt={item.name} />
+                  ) : (
+                    <img src="/placeholder.svg" alt={item.name} className="w-full h-full object-cover" />
+                  )}
                   {item.is_bestseller && <BestsellerBadge className="absolute top-2 left-2" />}
                   <div className="absolute top-2 right-2 flex gap-1.5">
                     {item.has_size_variants && (

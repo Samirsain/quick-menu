@@ -109,7 +109,7 @@ const Landing = () => (
     {/* Footer */}
     <footer className="mt-20 sm:mt-24 border-t border-menu-line">
       <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8 flex flex-col sm:flex-row items-center gap-4 text-[13px] text-menu-muted">
-        <span>© {new Date().getFullYear()} QuickMenu</span>
+        <span>© {new Date().getFullYear()} QuickMenu · Made by <a href="https://zenviqdigital.in" target="_blank" rel="noopener" className="font-medium hover:text-menu-ink underline-offset-4 hover:underline transition-colors">zenviqdigital.in</a></span>
         <nav className="sm:ml-auto flex flex-wrap justify-center gap-x-5 gap-y-2">
           {[["/about", "About"], ["/terms", "Terms"], ["/privacy-policy", "Privacy"], ["/contact", "Contact"]].map(([to, label]) => (
             <Link key={to} to={to} className="hover:text-menu-ink transition-colors">{label}</Link>

@@ -14,7 +14,7 @@ const corsHeaders = {
 const CLOUD_NAME = Deno.env.get("CLOUDINARY_CLOUD_NAME")!;
 const API_KEY = Deno.env.get("CLOUDINARY_API_KEY")!;
 const API_SECRET = Deno.env.get("CLOUDINARY_API_SECRET")!;
-const FOLDERS = ["menu-items", "restaurant-logos"];
+const FOLDERS = ["menu-items", "restaurant-logos", "restaurant-covers"];
 const ALLOWED_FORMATS = "jpg,jpeg,png,webp,gif";
 
 const json = (body: unknown, status = 200) =>

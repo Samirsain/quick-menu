@@ -87,7 +87,7 @@ const PolicyLayout = ({ title, lastUpdated, children }: PolicyLayoutProps) => {
             </div>
             <span className="font-semibold">QuickMenu</span>
           </div>
-          <p className="text-sm text-muted-foreground">© 2025 QuickMenu. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} QuickMenu. All rights reserved. Made by <a href="https://zenviqdigital.in" target="_blank" rel="noopener" className="font-medium hover:text-primary underline-offset-4 hover:underline transition-colors">zenviqdigital.in</a></p>
           <div className="flex items-center justify-center gap-4 mt-2 text-sm text-muted-foreground">
             <a href="https://addmenu.in" className="hover:text-primary transition-colors">addmenu.in</a>
             <span>•</span>

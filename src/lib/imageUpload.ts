@@ -28,9 +28,15 @@ export function isHostedImage(url: string): boolean {
   return url.includes("res.cloudinary.com/");
 }
 
+// Ask Cloudinary for a resized copy in the best format the browser supports (WebP/AVIF).
+// c_limit never upscales, so small uploads stay as they are.
+export function sizedImage(url: string, width: number): string {
+  return isHostedImage(url) ? url.replace("/image/upload/", `/image/upload/c_limit,w_${width},f_auto,q_auto/`) : url;
+}
+
 export async function uploadImage(
   file: File,
-  folder: "menu-items" | "restaurant-logos" = "menu-items",
+  folder: "menu-items" | "restaurant-logos" | "restaurant-covers" = "menu-items",
   onProgress?: (progress: number) => void
 ): Promise<UploadResult> {
   const validation = validateFile(file);

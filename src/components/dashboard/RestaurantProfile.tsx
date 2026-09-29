@@ -12,7 +12,7 @@ import {
   Store, ImageIcon, CheckCircle2, AlertCircle, Settings, ShoppingCart, HandHelping,
   Sun, Moon, Monitor, Building2, Hotel
 } from "lucide-react";
-import { uploadImage, deleteImage, isHostedImage } from "@/lib/imageUpload";
+import { uploadImage, deleteImage, isHostedImage, sizedImage } from "@/lib/imageUpload";
 import { motion } from "framer-motion";
 import {
   AlertDialog,
@@ -36,13 +36,15 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState<null | "logo" | "cover">(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [upiId, setUpiId] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [originalLogoUrl, setOriginalLogoUrl] = useState<string | null>(null);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [originalCoverUrl, setOriginalCoverUrl] = useState<string | null>(null);
   
   // Feature toggles
   const [ordersEnabled, setOrdersEnabled] = useState(true);
@@ -181,7 +183,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
       setLoading(true);
       const { data, error } = await supabase
         .from("restaurants")
-        .select("name, description, logo_url, orders_enabled, waiter_call_enabled, business_type, upi_id")
+        .select("name, description, logo_url, cover_url, orders_enabled, waiter_call_enabled, business_type, upi_id")
         .eq("id", restaurantId)
         .single();
 
@@ -192,6 +194,8 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
       setUpiId(data.upi_id || "");
       setLogoUrl(data.logo_url || null);
       setOriginalLogoUrl(data.logo_url || null);
+      setCoverUrl(data.cover_url || null);
+      setOriginalCoverUrl(data.cover_url || null);
       setOrdersEnabled(data.orders_enabled ?? true);
       setWaiterCallEnabled(data.waiter_call_enabled ?? true);
       const type = data.business_type as 'restaurant' | 'hotel';
@@ -323,7 +327,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
     }
   };
 
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (kind: "logo" | "cover") => async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = event.target.files?.[0];
       if (!file) return;
@@ -338,14 +342,14 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
         return;
       }
 
-      setUploading(true);
+      setUploading(kind);
       
       const { compressImage } = await import("@/lib/imageOptimization");
-      const compressedFile = await compressImage(file, 'logo');
+      const compressedFile = await compressImage(file, kind);
 
       const result = await uploadImage(
         compressedFile,
-        "restaurant-logos",
+        kind === "logo" ? "restaurant-logos" : "restaurant-covers",
         (progress) => setUploadProgress(progress)
       );
 
@@ -353,13 +357,14 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
         throw new Error(result.error || "Upload failed");
       }
 
-      setLogoUrl(result.publicUrl);
-      toast({ title: "Logo uploaded!", description: "Don't forget to save" });
+      (kind === "logo" ? setLogoUrl : setCoverUrl)(result.publicUrl);
+      toast({ title: kind === "logo" ? "Logo uploaded!" : "Cover photo uploaded!", description: "Don't forget to save" });
     } catch (error: any) {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     } finally {
-      setUploading(false);
+      setUploading(null);
       setUploadProgress(0);
+      event.target.value = ""; // lets the same file be picked again after removing it
     }
   };
 
@@ -382,6 +387,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
           name: name.trim(),
           description: description.trim(),
           logo_url: logoUrl,
+          cover_url: coverUrl,
           upi_id: upi || null,
         })
         .eq("id", restaurantId);
@@ -392,7 +398,12 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
         deleteImage(originalLogoUrl);
       }
 
+      if (originalCoverUrl && originalCoverUrl !== coverUrl && isHostedImage(originalCoverUrl)) {
+        deleteImage(originalCoverUrl);
+      }
+
       setOriginalLogoUrl(logoUrl);
+      setOriginalCoverUrl(coverUrl);
       toast({ title: "Saved!", description: "Settings updated successfully" });
     } catch (error: any) {
       toast({ title: "Error", description: "Failed to save", variant: "destructive" });
@@ -490,12 +501,12 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                 <Input
                   type="file"
                   accept="image/*"
-                  onChange={handleLogoUpload}
-                  disabled={uploading}
+                  onChange={handleImageUpload("logo")}
+                  disabled={!!uploading}
                   className="cursor-pointer"
                 />
               </div>
-              {uploading && (
+              {uploading === "logo" && (
                 <div className="mt-2">
                   <div className="flex items-center gap-2 text-xs text-primary">
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -511,6 +522,47 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
               )}
               <p className="text-xs text-zinc-500 mt-1">Square image, max 5MB</p>
             </div>
+          </div>
+
+          {/* Cover photo: shown behind the restaurant name on the public menu */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium block">Cover Photo</Label>
+            <div className="relative aspect-[16/7] w-full overflow-hidden rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800">
+              <img
+                src={coverUrl ? sizedImage(coverUrl, 1200) : "/menu-cover.jpg"}
+                alt="Cover"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              {/* Same shade as the menu, so the preview matches what guests see */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/30 to-black/85" />
+              <span className="absolute left-4 bottom-3 text-white font-semibold text-lg drop-shadow">{name || "Your restaurant"}</span>
+              {coverUrl ? (
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 h-7 w-7 rounded-full shadow-lg"
+                  onClick={() => { setCoverUrl(null); toast({ title: "Cover removed", description: "Save to confirm" }); }}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <span className="absolute top-2 right-2 rounded-full bg-black/50 px-2.5 py-1 text-[11px] text-white">Default cover</span>
+              )}
+            </div>
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload("cover")}
+              disabled={!!uploading}
+              className="cursor-pointer"
+            />
+            {uploading === "cover" && (
+              <div className="flex items-center gap-2 text-xs text-primary">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Uploading... {uploadProgress}%
+              </div>
+            )}
+            <p className="text-xs text-zinc-500">Landscape photo works best (at least 1600px wide), max 5MB. It fits every screen automatically.</p>
           </div>
 
           {/* Name Input */}

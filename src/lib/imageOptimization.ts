@@ -13,13 +13,18 @@ export const LOGO_MAX_DIMENSION = 500; // 500px for logos
 export const LOGO_QUALITY = 0.90; // 90% quality - top quality for logos
 export const LOGO_TARGET_SIZE = 50 * 1024; // Target 50KB
 
+// Cover photos: shown full-width behind the restaurant name, so they stay large
+export const COVER_MAX_DIMENSION = 2400;
+export const COVER_QUALITY = 0.85;
+export const COVER_TARGET_SIZE = 300 * 1024; // Target 300KB
+
 /**
  * Compress an image file with smart quality adjustment
  * Automatically finds the best quality/size balance
  */
 export async function compressImage(
   file: File,
-  type: 'menu' | 'logo' = 'menu'
+  type: 'menu' | 'logo' | 'cover' = 'menu'
 ): Promise<File> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -28,9 +33,11 @@ export async function compressImage(
       const img = new Image();
       
       img.onload = async () => {
-        const config = type === 'logo' 
-          ? { maxDim: LOGO_MAX_DIMENSION, quality: LOGO_QUALITY, target: LOGO_TARGET_SIZE }
-          : { maxDim: MENU_MAX_DIMENSION, quality: MENU_QUALITY, target: MENU_TARGET_SIZE };
+        const config = {
+          logo: { maxDim: LOGO_MAX_DIMENSION, quality: LOGO_QUALITY, target: LOGO_TARGET_SIZE },
+          cover: { maxDim: COVER_MAX_DIMENSION, quality: COVER_QUALITY, target: COVER_TARGET_SIZE },
+          menu: { maxDim: MENU_MAX_DIMENSION, quality: MENU_QUALITY, target: MENU_TARGET_SIZE },
+        }[type];
         
         // Calculate new dimensions maintaining aspect ratio
         let width = img.width;
