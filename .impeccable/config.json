@@ -1,0 +1,23 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/components/dashboard/QRCodeDisplay.tsx"
+        ],
+        "createdAt": "2026-11-20T11:08:31.460Z",
+        "reason": "Claude: QR preview scan-frame corner brackets (four L-shaped corners), not a one-sided card stripe; documented in DESIGN.md Don'ts"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "menlo",
+        "createdAt": "2026-11-22T16:41:19.469Z",
+        "reason": "agent decision: monospace only in 80mm thermal print slips (KOT, bill) for column alignment; pre-existing in the KOT, never in app UI"
+      }
+    ]
+  }
+}

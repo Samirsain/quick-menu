@@ -9,6 +9,8 @@
     <!-- Installable app (PWA) -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#B0522C" />
+    <!-- Stop phone browsers (Chrome "darken sites", Samsung Internet, MIUI) from auto-inverting the cream palette -->
+    <meta name="color-scheme" content="only light" />
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,24 +18,24 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
     
     <!-- OneSignal Push Notifications -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
-      console.log('🔔 OneSignal script loading...');
-      
-      // Only initialize OneSignal on the production domain (must match the Site URL set in OneSignal)
-      const isProductionDomain = window.location.hostname === 'quickmenu-cpt.pages.dev';
-      
-      if (isProductionDomain) {
+      // Push (OneSignal) runs on the live site only; OneSignal itself refuses origins that don't match its Site URL.
+      // window.__QM_PUSH_ON__ is the one switch the app reads (Settings > Notifications).
+      window.__QM_PUSH_ON__ = !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+      // The bell button is for staff; guests at /menu never see it
+      const isStaffPage = /^\/(dashboard|kitchen)/.test(window.location.pathname);
+
+      if (window.__QM_PUSH_ON__) {
         window.OneSignalDeferred = window.OneSignalDeferred || [];
         OneSignalDeferred.push(async function(OneSignal) {
-          console.log('🔔 OneSignal initializing...');
           try {
             await OneSignal.init({
-              appId: "4d95ee74-a8c3-465f-9a2f-629f5ff98700",
-              allowLocalhostAsSecureOrigin: true,
+              appId: "2d283efb-dc80-4520-87ad-23040771c26e",
+              safari_web_id: "web.onesignal.auto.4345f3b9-0648-4376-838e-008c1d802430",
               serviceWorkerPath: "/OneSignalSDKWorker.js",
               // Prompt settings
               promptOptions: {
@@ -49,9 +51,8 @@
                   }]
                 }
               },
-              // Notification settings
               notifyButton: {
-                enable: false, // We handle this in dashboard
+                enable: isStaffPage,
               },
               // Welcome notification
               welcomeNotification: {
@@ -59,18 +60,10 @@
                 message: "You'll now receive order alerts!"
               }
             });
-            
-            console.log('✅ OneSignal initialized successfully!');
-            
-            // Log current state
-            const permission = await OneSignal.Notifications.permission;
-            console.log('🔔 Current permission:', permission);
           } catch (error) {
-            console.error('❌ OneSignal initialization error:', error);
+            console.warn('Push notifications unavailable on this site:', error);
           }
         });
-      } else {
-        console.log('⚠️ OneSignal skipped - only runs on quickmenu-cpt.pages.dev (current:', window.location.hostname, ')');
       }
     </script>
     <meta name="description" content="Modern QR ordering system for restaurants. Contactless menu browsing, real-time order tracking, and customer feedback." />
@@ -79,10 +72,10 @@
     <meta property="og:title" content="QuickMenu - QR Menu & Ordering System" />
     <meta property="og:description" content="Modern QR ordering system for restaurants. Contactless menu browsing, real-time order tracking, and customer feedback." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://quickmenu-cpt.pages.dev/quickmenu-demo.jpg" />
+    <meta property="og:image" content="https://quickmenu.biz/quickmenu-demo.jpg" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://quickmenu-cpt.pages.dev/quickmenu-demo.jpg" />
+    <meta name="twitter:image" content="https://quickmenu.biz/quickmenu-demo.jpg" />
     
   </head>
 

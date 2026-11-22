@@ -6,17 +6,20 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useBusinessType } from "@/hooks/useBusinessType";
-import { Bell, User, Droplets, Receipt, Check, Clock } from "lucide-react";
+import { Bell, User, Droplets, Receipt, Check, Clock, LifeBuoy, SprayCan, Footprints } from "lucide-react";
+import { useOnShift } from "@/hooks/useOnShift";
+import { staffApi } from "@/lib/staffApi";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ServiceCall {
   id: string;
   restaurant_id: string;
   table_number: string;
-  call_type: "waiter" | "water" | "bill";
+  call_type: "waiter" | "water" | "bill" | "help" | "clean";
   status: "pending" | "acknowledged" | "completed";
   created_at: string;
   acknowledged_at: string | null;
+  acknowledged_by?: string | null;
   completed_at: string | null;
 }
 
@@ -26,14 +29,21 @@ interface ServiceCallsPanelProps {
 }
 
 const CALL_CONFIG = {
-  waiter: { icon: User, label: "Waiter", color: "bg-blue-500", lightBg: "bg-blue-50 dark:bg-blue-900/20" },
-  water: { icon: Droplets, label: "Water", color: "bg-cyan-500", lightBg: "bg-cyan-50 dark:bg-cyan-900/20" },
-  bill: { icon: Receipt, label: "Bill", color: "bg-green-500", lightBg: "bg-green-50 dark:bg-green-900/20" },
+  waiter: { icon: User, label: "Waiter" },
+  water: { icon: Droplets, label: "Water" },
+  bill: { icon: Receipt, label: "Bill" },
+  help: { icon: LifeBuoy, label: "Help" },
+  clean: { icon: SprayCan, label: "Clean the table" },
 };
+// Unanswered this long and the card turns red for whoever is managing the floor
+const ESCALATE_MS = 3 * 60 * 1000;
 
 const ServiceCallsPanel = ({ restaurantId, onNewCall }: ServiceCallsPanelProps) => {
   const { toast } = useToast();
   const { locationLabel } = useBusinessType(restaurantId);
+  const { name: onShift } = useOnShift(restaurantId);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(t); }, []);
   const [calls, setCalls] = useState<ServiceCall[]>([]);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<any>(null);
@@ -104,7 +114,7 @@ const ServiceCallsPanel = ({ restaurantId, onNewCall }: ServiceCallsPanelProps) 
             onNewCall?.(newCall);
             
             toast({
-              title: `🔔 ${CALL_CONFIG[newCall.call_type].label} Request!`,
+              title: `${CALL_CONFIG[newCall.call_type].label} request`,
               description: `${locationLabel} ${newCall.table_number} needs ${newCall.call_type}`,
               duration: 10000,
             });
@@ -242,7 +252,7 @@ const ServiceCallsPanel = ({ restaurantId, onNewCall }: ServiceCallsPanelProps) 
   const updateCallStatus = async (callId: string, status: "acknowledged" | "completed") => {
     try {
       const updateData: any = { status };
-      if (status === "acknowledged") updateData.acknowledged_at = new Date().toISOString();
+      if (status === "acknowledged") { updateData.acknowledged_at = new Date().toISOString(); updateData.acknowledged_by = onShift; }
       if (status === "completed") updateData.completed_at = new Date().toISOString();
 
       const { error } = await supabase
@@ -260,10 +270,12 @@ const ServiceCallsPanel = ({ restaurantId, onNewCall }: ServiceCallsPanelProps) 
         return prev.map(c => c.id === callId ? { ...c, ...updateData } : c);
       });
 
+      const call = calls.find(c => c.id === callId);
+      staffApi.log(restaurantId, onShift, "call_answered", { table: call?.table_number, status: status === "acknowledged" ? "on the way" : "done" });
       toast({
-        title: status === "acknowledged" ? "👍 Acknowledged" : "✅ Completed",
-        description: `Request marked as ${status}`,
-        duration: 2000,
+        title: status === "acknowledged" ? "Guest told you're on the way" : "Request done",
+        description: status === "acknowledged" ? (onShift ? `They see "${onShift} is on the way".` : "Start your shift (top of the screen) so guests see your name.") : undefined,
+        duration: 3000,
       });
     } catch (error: any) {
       toast({
@@ -278,7 +290,7 @@ const ServiceCallsPanel = ({ restaurantId, onNewCall }: ServiceCallsPanelProps) 
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
   };
 
   const getTimeSince = (dateStr: string) => {
@@ -300,7 +312,7 @@ const ServiceCallsPanel = ({ restaurantId, onNewCall }: ServiceCallsPanelProps) 
           </div>
         </div>
         {[1, 2, 3].map((i) => (
-          <Card key={i} className="shadow-md rounded-2xl border-0 p-4">
+          <Card key={i} className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Skeleton className="w-12 h-12 rounded-xl" />
@@ -322,72 +334,86 @@ const ServiceCallsPanel = ({ restaurantId, onNewCall }: ServiceCallsPanelProps) 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
-            <Bell className="w-5 h-5 text-orange-500" />
+          <div className="w-10 h-10 bg-accent rounded-full flex items-center justify-center">
+            <Bell className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-lg">Service Calls</h3>
+            <h2 className="text-2xl font-semibold tracking-tight">Service calls</h2>
             <p className="text-sm text-muted-foreground">
               {calls.length === 0 ? "No active requests" : `${calls.length} active request${calls.length > 1 ? "s" : ""}`}
             </p>
           </div>
         </div>
         {pendingCalls.length > 0 && (
-          <Badge variant="destructive" className="animate-pulse">
-            {pendingCalls.length} Pending
+          <Badge className="tabular-nums">
+            {pendingCalls.length} new
           </Badge>
         )}
       </div>
 
       {/* Calls List */}
       {calls.length === 0 ? (
-        <Card className="p-8 text-center shadow-md rounded-2xl border-0">
-          <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-          <p className="text-muted-foreground">No service requests</p>
+        <Card className="p-10 text-center">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-accent flex items-center justify-center">
+            <Bell className="w-6 h-6 text-primary" />
+          </div>
+          <p className="font-semibold">No service requests</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Requests from customers will appear here
+            Waiter, water, bill, help and cleaning requests from tables appear here
           </p>
         </Card>
       ) : (
         <div className="space-y-3">
           <AnimatePresence mode="popLayout">
             {calls.map((call) => {
-              const config = CALL_CONFIG[call.call_type];
+              const config = CALL_CONFIG[call.call_type] || CALL_CONFIG.waiter;
               const Icon = config.icon;
               const isPending = call.status === "pending";
+              const escalated = isPending && now - new Date(call.created_at).getTime() > ESCALATE_MS;
 
               return (
                 <motion.div
                   key={call.id}
                   layout
-                  initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: 100, scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  initial={{ opacity: 0, y: -12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: 60 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <Card className={`overflow-hidden shadow-md rounded-2xl border-0 ${isPending ? "ring-2 ring-orange-500 shadow-lg" : ""}`}>
-                    <div className={`p-4 ${config.lightBg}`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-12 h-12 ${config.color} rounded-xl flex items-center justify-center text-white shadow-lg`}>
-                            <Icon className="w-6 h-6" />
+                  <Card className={`overflow-hidden ${escalated ? "border-destructive/60 ring-1 ring-destructive/30" : isPending ? "border-primary/50 ring-1 ring-primary/25" : ""}`}>
+                    <div className="p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isPending ? "bg-primary text-primary-foreground" : "bg-accent text-primary"}`}>
+                            <Icon className="w-5 h-5" />
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-lg">{locationLabel} {call.table_number}</span>
-                              <Badge variant="destructive" className="animate-pulse">
-                                {CALL_CONFIG[call.call_type].label}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-display text-xl leading-tight">{locationLabel} {call.table_number}</span>
+                              <Badge variant={isPending ? "default" : "secondary"}>
+                                {config.label}
                               </Badge>
                             </div>
-                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            <p className={`text-sm flex items-center gap-1 tabular-nums ${escalated ? "text-destructive font-medium" : "text-muted-foreground"}`}>
                               <Clock className="w-3 h-3" />
-                              {formatTime(call.created_at)} • {getTimeSince(call.created_at)}
+                              {formatTime(call.created_at)} · {getTimeSince(call.created_at)}
+                              {escalated && " · nobody has answered"}
+                              {call.status === "acknowledged" && ` · ${call.acknowledged_by || "Staff"} on the way`}
                             </p>
                           </div>
                         </div>
+                        <div className="flex gap-2 flex-shrink-0">
+                        {isPending && (
+                          <Button size="sm" variant="outline" className="gap-1" onClick={() => {
+                            if (soundIntervalRef.current) { clearInterval(soundIntervalRef.current); soundIntervalRef.current = null; }
+                            updateCallStatus(call.id, "acknowledged");
+                          }}>
+                            <Footprints className="w-4 h-4" />
+                            On my way
+                          </Button>
+                        )}
                         <Button
                           size="sm"
-                          variant="default"
                           onClick={() => {
                             // Stop sound when marking as done
                             if (soundIntervalRef.current) {
@@ -396,11 +422,12 @@ const ServiceCallsPanel = ({ restaurantId, onNewCall }: ServiceCallsPanelProps) 
                             }
                             updateCallStatus(call.id, "completed");
                           }}
-                          className="gap-1 bg-green-500 hover:bg-green-600"
+                          className="gap-1 flex-shrink-0"
                         >
                           <Check className="w-4 h-4" />
                           Done
                         </Button>
+                        </div>
                       </div>
                     </div>
                   </Card>

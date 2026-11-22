@@ -20,7 +20,18 @@ import {
   FileText,
   ChefHat,
   Download,
+  Sun,
+  Moon,
   MoreHorizontal,
+  Droplets,
+  PauseCircle,
+  LayoutGrid,
+  Wallet,
+  Users,
+  SlidersHorizontal,
+  LineChart,
+  LifeBuoy,
+  SprayCan,
 } from "lucide-react";
 import { InstallAppButton } from "@/components/InstallAppButton";
 import { Link } from "react-router-dom";
@@ -35,6 +46,11 @@ import QRCodeDisplay from "@/components/dashboard/QRCodeDisplay";
 import SocialLinksForm from "@/components/dashboard/SocialLinksForm";
 import RestaurantProfile from "@/components/dashboard/RestaurantProfile";
 import ServiceCallsPanel from "@/components/dashboard/ServiceCallsPanel";
+import FloorView from "@/components/dashboard/FloorView";
+import CashierView from "@/components/dashboard/CashierView";
+import ReportsView from "@/components/dashboard/ReportsView";
+import StaffView, { ShiftChip } from "@/components/dashboard/StaffView";
+import ServiceSetup from "@/components/dashboard/ServiceSetup";
 import { useBusinessType } from "@/hooks/useBusinessType";
 
 interface Order {
@@ -111,19 +127,25 @@ const DashboardWithSidebar = () => {
     {
       label: "Overview",
       href: "#stats",
-      icon: <BarChart3 className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <BarChart3 className="h-5 w-5 flex-shrink-0" />,
       onClick: () => handleTabChange("stats"),
+    },
+    {
+      label: "Floor",
+      href: "#floor",
+      icon: <LayoutGrid className="h-5 w-5 flex-shrink-0" />,
+      onClick: () => handleTabChange("floor"),
     },
     {
       label: "Menu",
       href: "#menu",
-      icon: <MenuIcon className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <MenuIcon className="h-5 w-5 flex-shrink-0" />,
       onClick: () => handleTabChange("menu"),
     },
     {
       label: "Orders",
       href: "#orders",
-      icon: <Package className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <Package className="h-5 w-5 flex-shrink-0" />,
       onClick: () => {
         handleTabChange("orders");
         setNewOrdersCount(0);
@@ -133,13 +155,13 @@ const DashboardWithSidebar = () => {
     {
       label: "Kitchen Display",
       href: "/kitchen",
-      icon: <ChefHat className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <ChefHat className="h-5 w-5 flex-shrink-0" />,
       onClick: () => {},
     },
     {
       label: "Service Calls",
       href: "#service-calls",
-      icon: <Bell className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <Bell className="h-5 w-5 flex-shrink-0" />,
       onClick: () => {
         handleTabChange("service-calls");
         setServiceCallsCount(0);
@@ -147,27 +169,51 @@ const DashboardWithSidebar = () => {
       badge: serviceCallsCount,
     },
     {
+      label: "Cashier",
+      href: "#cashier",
+      icon: <Wallet className="h-5 w-5 flex-shrink-0" />,
+      onClick: () => handleTabChange("cashier"),
+    },
+    {
+      label: "Reports",
+      href: "#reports",
+      icon: <LineChart className="h-5 w-5 flex-shrink-0" />,
+      onClick: () => handleTabChange("reports"),
+    },
+    {
       label: "Feedback",
       href: "#feedback",
-      icon: <MessageSquare className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <MessageSquare className="h-5 w-5 flex-shrink-0" />,
       onClick: () => handleTabChange("feedback"),
+    },
+    {
+      label: "Staff",
+      href: "#staff",
+      icon: <Users className="h-5 w-5 flex-shrink-0" />,
+      onClick: () => handleTabChange("staff"),
+    },
+    {
+      label: "Service setup",
+      href: "#setup",
+      icon: <SlidersHorizontal className="h-5 w-5 flex-shrink-0" />,
+      onClick: () => handleTabChange("setup"),
     },
     {
       label: "Social Links",
       href: "#social",
-      icon: <Share2 className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <Share2 className="h-5 w-5 flex-shrink-0" />,
       onClick: () => handleTabChange("social"),
     },
     {
       label: "QR Code",
       href: "#qr",
-      icon: <QrCode className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <QrCode className="h-5 w-5 flex-shrink-0" />,
       onClick: () => handleTabChange("qr"),
     },
   {
       label: "Settings",
       href: "#profile",
-      icon: <Settings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <Settings className="h-5 w-5 flex-shrink-0" />,
       onClick: () => handleTabChange("profile"),
     },
   ];
@@ -175,6 +221,24 @@ const DashboardWithSidebar = () => {
   useEffect(() => {
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (!restaurantId) return;
+    const ch = supabase.channel(`low-rating-${restaurantId}-${Date.now()}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "feedback", filter: `restaurant_id=eq.${restaurantId}` },
+        async (p: { new: { rating: number; order_id: string; comment: string | null } }) => {
+          if (p.new.rating > 2) return;
+          const { data } = await supabase.from("orders").select("table_number").eq("id", p.new.order_id).maybeSingle();
+          toast({
+            title: `${p.new.rating}-star review${data?.table_number ? ` from table ${data.table_number}` : ""}`,
+            description: p.new.comment ? `"${p.new.comment.slice(0, 120)}" Worth a visit to the table now.` : "Worth a visit to the table now.",
+            variant: "destructive",
+            duration: 20000,
+          });
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [restaurantId]);
 
   // Setup OneSignal for push notifications
   useEffect(() => {
@@ -203,8 +267,8 @@ const DashboardWithSidebar = () => {
             
             if (granted) {
               toast({
-                title: "🔔 Notifications Enabled!",
-                description: "You'll receive alerts when new orders come in",
+                title: "Notifications on",
+                description: "You'll get an alert when a new order comes in",
                 duration: 5000,
               });
             }
@@ -302,7 +366,7 @@ const DashboardWithSidebar = () => {
                 playPleasantNotificationSound();
                 
                 toast({
-                  title: "🔔 New Order!",
+                  title: "New order",
                   description: `Order #${order.order_number} from ${locationLabel} ${order.table_number}`,
                   duration: 10000,
                 });
@@ -390,7 +454,7 @@ const DashboardWithSidebar = () => {
           handleNewServiceCall(newCall);
           
           toast({
-            title: `🔔 ${newCall.call_type.charAt(0).toUpperCase() + newCall.call_type.slice(1)} Request!`,
+            title: `${CALL_LABEL[newCall.call_type] ?? "Service"} request`,
             description: `${locationLabel} ${newCall.table_number} needs ${newCall.call_type}`,
             duration: 10000,
           });
@@ -420,7 +484,7 @@ const DashboardWithSidebar = () => {
 
       const { data: restaurant, error } = await supabase
         .from("restaurants")
-        .select("*")
+        .select("id, name, logo_url, is_active")
         .eq("user_id", session.user.id)
         .single();
 
@@ -470,8 +534,8 @@ const DashboardWithSidebar = () => {
             setLastViewCount(newViewCount);
             
             toast({
-              title: "👁️ New Customer!",
-              description: `Someone just scanned your QR code!`,
+              title: "New customer",
+              description: "Someone just scanned your QR code",
               duration: 5000,
             });
           }
@@ -544,11 +608,11 @@ const DashboardWithSidebar = () => {
     playPleasantNotificationSound();
     
     toast({
-      title: "🔔 New Order!",
+      title: "New order",
       description: `Order #${order.order_number} from ${locationLabel} ${order.table_number}`,
       duration: 10000,
     });
-    
+
     console.log('✅ Dashboard: New order notification triggered');
   };
 
@@ -705,10 +769,10 @@ const DashboardWithSidebar = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background" role="status">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading dashboard...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-border border-t-primary mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Loading your dashboard…</p>
         </div>
       </div>
     );
@@ -716,86 +780,83 @@ const DashboardWithSidebar = () => {
 
   if (!restaurantId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-destructive">Failed to load restaurant data</p>
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <h1 className="text-lg font-semibold">We couldn't load your restaurant</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Check your internet connection and try again. If it keeps happening, sign out and back in.</p>
+          <div className="mt-6 flex flex-col sm:flex-row gap-2 justify-center">
+            <Button onClick={() => window.location.reload()}>Try again</Button>
+            <Button variant="outline" onClick={handleSignOut} className="gap-2"><LogOut className="h-4 w-4" />Sign out</Button>
+          </div>
+        </Card>
       </div>
     );
   }
 
   if (isRestaurantDisabled) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="max-w-2xl w-full p-8">
-          <div className="text-center mb-6">
-            <div className="w-20 h-20 bg-blue-100 dark:bg-blue-950/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Bell className="h-10 w-10 text-blue-600 dark:text-blue-400" />
-            </div>
-            <h1 className="text-3xl font-bold mb-2">Service Temporarily Paused</h1>
-            <p className="text-lg text-muted-foreground">{restaurantName}</p>
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center mx-auto mb-5">
+            <PauseCircle className="h-8 w-8 text-primary" strokeWidth={1.75} />
           </div>
-          <Button variant="outline" onClick={handleSignOut} className="gap-2 mx-auto block">
+          <p className="font-display text-2xl leading-tight">{restaurantName}</p>
+          <h1 className="mt-2 text-base font-semibold">Service is paused</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Guests can't open your menu or order right now. <Link to="/contact" className="font-medium text-accent-foreground underline underline-offset-4">Contact support</Link> to turn it back on.</p>
+          <Button variant="outline" onClick={handleSignOut} className="mt-6 gap-2">
             <LogOut className="h-4 w-4" />
-            Sign Out
+            Sign out
           </Button>
         </Card>
       </div>
     );
   }
 
+  const CallIcon = serviceCallNotification ? CALL_ICON[serviceCallNotification.call_type] ?? Bell : Bell;
+
   return (
-    <div
-      className={cn(
-        "flex flex-col md:flex-row bg-gray-100 dark:bg-neutral-800 w-full flex-1 mx-auto border border-neutral-200 dark:border-neutral-700 overflow-hidden",
-        "h-screen"
-      )}
-    >
+    <div className="flex flex-col md:flex-row bg-background w-full flex-1 mx-auto overflow-hidden h-[100dvh]">
       {/* Global New Order Notification */}
       {newOrderNotification && (
-        <Card className="fixed top-16 md:top-4 left-4 right-4 md:left-auto md:right-4 z-[100] md:w-96 shadow-2xl border-2 border-primary animate-in slide-in-from-top-4 duration-500">
-          <CardHeader className="pb-3 bg-primary/5 p-4">
-            <div className="flex items-start justify-between">
+        <Card role="alert" className="fixed top-16 md:top-4 left-4 right-4 md:left-auto md:right-4 z-[100] md:w-96 border-primary/40 shadow-[var(--shadow-medium)] animate-in fade-in slide-in-from-top-4 duration-300">
+          <CardHeader className="p-4 pb-3">
+            <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-primary rounded-full flex items-center justify-center animate-pulse">
-                  <Bell className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
+                <div className="w-11 h-11 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                  <Bell className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg md:text-xl">🔔 New Order!</CardTitle>
-                  <p className="text-xs md:text-sm text-muted-foreground">Order #{newOrderNotification.order_number}</p>
+                  <CardTitle className="text-base font-semibold tracking-normal">New order</CardTitle>
+                  <p className="font-display text-xl leading-tight">#{newOrderNotification.order_number}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={dismissNotification} className="h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={dismissNotification} className="h-9 w-9 -mr-1 -mt-1" aria-label="Dismiss">
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="pt-3 p-4">
+          <CardContent className="p-4 pt-0">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{locationLabel} Number:</span>
-                <Badge variant="default" className="text-sm md:text-base px-2 md:px-3 py-1">
-                  {newOrderNotification.table_number}
-                </Badge>
+                <span className="text-sm text-muted-foreground">{locationLabel}</span>
+                <Badge className="text-sm px-3 py-0.5 tabular-nums">{newOrderNotification.table_number}</Badge>
               </div>
-              <div className="border-t pt-3">
-                <p className="text-sm font-medium mb-2">Items:</p>
-                <div className="space-y-1 text-xs md:text-sm text-muted-foreground max-h-32 overflow-y-auto">
-                  {newOrderNotification.items?.items?.map((item: any, idx: number) => (
-                    <div key={idx} className="flex justify-between">
-                      <span className="truncate mr-2">{item.name} x{item.quantity || 1}</span>
-                      <span className="flex-shrink-0">₹{(item.price * (item.quantity || 1)).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="border-t pt-3 space-y-1 text-sm max-h-32 overflow-y-auto">
+                {newOrderNotification.items?.items?.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between gap-3">
+                    <span className="truncate">{item.name} <span className="text-muted-foreground">×{item.quantity || 1}</span></span>
+                    <span className="flex-shrink-0 tabular-nums">₹{(item.price * (item.quantity || 1)).toFixed(0)}</span>
+                  </div>
+                ))}
               </div>
-              <Button 
+              <Button
                 onClick={() => {
                   handleTabChange("orders");
                   dismissNotification();
-                }} 
-                className="w-full mt-3" 
-                variant="default"
+                }}
+                className="w-full"
               >
-                View Order
+                View order
               </Button>
             </div>
           </CardContent>
@@ -804,105 +865,88 @@ const DashboardWithSidebar = () => {
 
       {/* Global Service Call Notification */}
       {serviceCallNotification && (
-        <Card className={`fixed ${newOrderNotification ? 'top-[280px] md:top-[220px]' : 'top-16 md:top-4'} left-4 right-4 md:left-auto md:right-4 z-[99] md:w-96 shadow-2xl border-2 border-orange-500 animate-in slide-in-from-top-4 duration-500`}>
-          <CardHeader className="pb-3 bg-orange-500/10 p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-orange-500 rounded-full flex items-center justify-center animate-bounce">
-                  {serviceCallNotification.call_type === 'waiter' && <User className="h-5 w-5 md:h-6 md:w-6 text-white" />}
-                  {serviceCallNotification.call_type === 'water' && <Bell className="h-5 w-5 md:h-6 md:w-6 text-white" />}
-                  {serviceCallNotification.call_type === 'bill' && <FileText className="h-5 w-5 md:h-6 md:w-6 text-white" />}
-                </div>
-                <div>
-                  <CardTitle className="text-lg md:text-xl">🔔 {serviceCallNotification.call_type.charAt(0).toUpperCase() + serviceCallNotification.call_type.slice(1)} Request!</CardTitle>
-                  <p className="text-xs md:text-sm text-muted-foreground">{locationLabel} {serviceCallNotification.table_number}</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="icon" onClick={dismissServiceCallNotification} className="h-8 w-8">
-                <X className="h-4 w-4" />
-              </Button>
+        <Card role="alert" className={`fixed ${newOrderNotification ? 'top-[300px] md:top-[260px]' : 'top-16 md:top-4'} left-4 right-4 md:left-auto md:right-4 z-[99] md:w-96 border-primary/40 shadow-[var(--shadow-medium)] animate-in fade-in slide-in-from-top-4 duration-300`}>
+          <div className="p-4 flex items-center gap-3">
+            <div className="w-11 h-11 bg-accent rounded-full flex items-center justify-center flex-shrink-0">
+              <CallIcon className="h-5 w-5 text-primary" />
             </div>
-          </CardHeader>
-          <CardContent className="pt-3 p-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Request Type:</span>
-                <Badge variant="destructive" className="text-sm md:text-base px-2 md:px-3 py-1 animate-pulse">
-                  {serviceCallNotification.call_type.charAt(0).toUpperCase() + serviceCallNotification.call_type.slice(1)}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{locationLabel} Number:</span>
-                <Badge variant="default" className="text-sm md:text-base px-2 md:px-3 py-1">
-                  {serviceCallNotification.table_number}
-                </Badge>
-              </div>
-              <Button 
-                onClick={() => {
-                  handleTabChange("service-calls");
-                  setServiceCallsCount(0);
-                  dismissServiceCallNotification();
-                }} 
-                className="w-full mt-3 bg-orange-500 hover:bg-orange-600" 
-                variant="default"
-              >
-                View Service Calls
-              </Button>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-semibold">{CALL_LABEL[serviceCallNotification.call_type] ?? "Service"} request</p>
+              <p className="text-sm text-muted-foreground">{locationLabel} <span className="font-semibold text-foreground tabular-nums">{serviceCallNotification.table_number}</span></p>
             </div>
-          </CardContent>
+            <Button variant="ghost" size="icon" onClick={dismissServiceCallNotification} className="h-9 w-9 -mr-1" aria-label="Dismiss">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="px-4 pb-4">
+            <Button
+              onClick={() => {
+                handleTabChange("service-calls");
+                setServiceCallsCount(0);
+                dismissServiceCallNotification();
+              }}
+              className="w-full"
+            >
+              View calls
+            </Button>
+          </div>
         </Card>
       )}
 
       <Sidebar open={open} setOpen={setOpen} animate={false}>
         <SidebarBody
-          className="justify-between gap-10"
+          className="justify-between gap-4"
           mobileTitle={links.find(l => l.href === `#${activeTab}`)?.label ?? "Dashboard"}
           mobileActions={
-            <InstallAppButton className="h-10 w-10 flex items-center justify-center rounded-full text-neutral-700 dark:text-neutral-200 active:bg-neutral-200 dark:active:bg-neutral-700">
-              <Download className="h-5 w-5" aria-label="Install app" />
-            </InstallAppButton>
+            <>
+              <ShiftChip restaurantId={restaurantId} className="max-w-[9rem]" />
+              <ThemeToggle />
+              <InstallAppButton className="h-10 w-10 flex items-center justify-center rounded-full text-foreground active:bg-muted">
+                <Download className="h-5 w-5" aria-label="Install app" />
+              </InstallAppButton>
+            </>
           }
         >
-          <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none]">
+          <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
             <Logo name={restaurantName} logo={restaurantLogo} />
-            <div className="mt-6 flex flex-col gap-1">
-              {links.map((link, idx) => (
-                <div key={idx} className="relative" onClick={link.onClick}>
-                  <SidebarLink link={link} className={cn("rounded-lg px-2 transition-colors", link.href === `#${activeTab}` ? "bg-white dark:bg-neutral-700 shadow-sm font-semibold" : "hover:bg-white/60 dark:hover:bg-neutral-700/50")} />
-                  {!!link.badge && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute top-1 right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
-                    >
-                      {link.badge}
-                    </Badge>
-                  )}
-                </div>
-              ))}
+            <ShiftChip restaurantId={restaurantId} className="hidden md:flex mt-4 w-full justify-start" />
+            <div className="mt-4 flex flex-col gap-0.5">
+              {links.map((link, idx) => {
+                const active = link.href === `#${activeTab}`;
+                return (
+                  <div key={idx} className="relative" onClick={link.onClick}>
+                    <SidebarLink
+                      link={link}
+                      className={cn(
+                        "rounded-xl px-2.5 transition-colors",
+                        active ? "bg-card text-foreground font-semibold ring-1 ring-border [&_svg]:text-primary" : "text-foreground/75 hover:bg-card/70 hover:text-foreground",
+                      )}
+                    />
+                    {!!link.badge && (
+                      <span className="absolute top-1/2 -translate-y-1/2 right-2 min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold tabular-nums flex items-center justify-center">
+                        {link.badge}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <div className="space-y-2">
-            <InstallAppButton className="w-full flex items-center justify-start gap-2 py-2 px-2 rounded-lg text-sm text-neutral-700 dark:text-neutral-200 hover:bg-white/60 dark:hover:bg-neutral-700/50 transition-colors">
+          <div className="space-y-0.5 pt-4 border-t border-border/70">
+            <InstallAppButton className="w-full flex items-center justify-start gap-2 py-2 px-2.5 rounded-xl text-sm text-foreground/75 hover:bg-card/70 hover:text-foreground transition-colors">
               <Download className="h-5 w-5 flex-shrink-0" /> Install app
             </InstallAppButton>
             {/* Policy Links */}
             <Link
               to="/terms"
-              className="flex items-center justify-start gap-2 group/sidebar py-2 px-2 rounded-lg cursor-pointer hover:bg-white/60 dark:hover:bg-neutral-700/50 transition-colors"
+              className="flex items-center justify-start gap-2 py-2 px-2.5 rounded-xl text-sm text-foreground/75 hover:bg-card/70 hover:text-foreground transition-colors"
             >
-              <FileText className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-              <motion.span
-                animate={{
-                  display: "inline-block",
-                  opacity: 1,
-                }}
-                className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
-              >
-                Terms & Policies
-              </motion.span>
+              <FileText className="h-5 w-5 flex-shrink-0" />
+              Terms & Policies
             </Link>
-            
-            <div
+
+            <button
+              type="button"
               onClick={() => {
                 setOpen(false); // Close mobile sidebar
                 const testOrder: Order = {
@@ -924,42 +968,27 @@ const DashboardWithSidebar = () => {
                 setNewOrderNotification(testOrder);
                 
                 toast({
-                  title: "🧪 Testing Sound",
-                  description: "Listen for 15 seconds of beeps",
+                  title: "Testing the order alert",
+                  description: "The alert beeps for 15 seconds. Close the card to stop it.",
                   duration: 3000,
                 });
               }}
-              className="flex items-center justify-start gap-2 group/sidebar py-2 px-2 rounded-lg cursor-pointer hover:bg-white/60 dark:hover:bg-neutral-700/50 transition-colors"
+              className="w-full flex items-center justify-start gap-2 py-2 px-2.5 rounded-xl text-sm text-foreground/75 hover:bg-card/70 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <Bell className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-              <motion.span
-                animate={{
-                  display: "inline-block",
-                  opacity: 1,
-                }}
-                className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
-              >
-                Test Order Alert
-              </motion.span>
-            </div>
-            <div
+              <Bell className="h-5 w-5 flex-shrink-0" />
+              Test order alert
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setOpen(false); // Close mobile sidebar
                 handleSignOut();
               }}
-              className="flex items-center justify-start gap-2 group/sidebar py-2 px-2 rounded-lg cursor-pointer hover:bg-white/60 dark:hover:bg-neutral-700/50 transition-colors"
+              className="w-full flex items-center justify-start gap-2 py-2 px-2.5 rounded-xl text-sm text-foreground/75 hover:bg-card/70 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <LogOut className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-              <motion.span
-                animate={{
-                  display: "inline-block",
-                  opacity: 1,
-                }}
-                className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
-              >
-                Logout
-              </motion.span>
-            </div>
+              <LogOut className="h-5 w-5 flex-shrink-0" />
+              Log out
+            </button>
           </div>
         </SidebarBody>
       </Sidebar>
@@ -973,12 +1002,12 @@ const DashboardWithSidebar = () => {
       />
 
       {/* Phone: app-style tab bar for the pages used all day; "More" opens the full menu */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-neutral-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)]">
+      <nav aria-label="Main" className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-5">
           {[
             { tab: "stats", label: "Home", Icon: BarChart3 },
             { tab: "orders", label: "Orders", Icon: Package, badge: newOrdersCount, onPick: () => setNewOrdersCount(0) },
-            { tab: "menu", label: "Menu", Icon: MenuIcon },
+            { tab: "floor", label: "Floor", Icon: LayoutGrid },
             { tab: "service-calls", label: "Calls", Icon: Bell, badge: serviceCallsCount, onPick: () => setServiceCallsCount(0) },
           ].map(({ tab, label, Icon, badge, onPick }) => {
             const active = activeTab === tab;
@@ -987,19 +1016,20 @@ const DashboardWithSidebar = () => {
                 key={tab}
                 type="button"
                 onClick={() => { handleTabChange(tab); onPick?.(); }}
-                className={cn("relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium", active ? "text-orange-600 dark:text-orange-400" : "text-neutral-500 dark:text-neutral-400")}
+                aria-current={active ? "page" : undefined}
+                className={cn("relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors", active ? "text-accent-foreground font-semibold" : "text-muted-foreground")}
               >
-                <span className={cn("flex h-8 w-14 items-center justify-center rounded-full transition-colors", active && "bg-orange-100 dark:bg-orange-500/15")}>
+                <span className={cn("flex h-8 w-14 items-center justify-center rounded-full transition-colors", active && "bg-accent")}>
                   <Icon className="h-5 w-5" />
                 </span>
                 {label}
                 {!!badge && (
-                  <span className="absolute top-1.5 left-1/2 ml-2 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-semibold flex items-center justify-center">{badge}</span>
+                  <span className="absolute top-1.5 left-1/2 ml-2 min-w-5 h-5 px-1 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold tabular-nums flex items-center justify-center ring-2 ring-card">{badge}</span>
                 )}
               </button>
             );
           })}
-          <button type="button" onClick={() => setOpen(true)} className="flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium text-neutral-500 dark:text-neutral-400">
+          <button type="button" onClick={() => setOpen(true)} className="flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground">
             <span className="flex h-8 w-14 items-center justify-center rounded-full"><MoreHorizontal className="h-5 w-5" /></span>
             More
           </button>
@@ -1009,25 +1039,54 @@ const DashboardWithSidebar = () => {
   );
 };
 
-const TABS = ["stats", "menu", "orders", "service-calls", "feedback", "social", "qr", "profile"];
+const TABS = ["stats", "floor", "cashier", "reports", "staff", "setup", "menu", "orders", "service-calls", "feedback", "social", "qr", "profile"];
+
+const isDashboardDark = () => {
+  const t = localStorage.getItem("dashboard-theme");
+  return t === "dark" || (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+};
+
+// One-tap light/dark switch in the phone header. Settings > Appearance still has Light/Dark/System;
+// both write localStorage "dashboard-theme" and fire "dashboard-theme" so they stay in sync.
+const ThemeToggle = () => {
+  const [dark, setDark] = useState(isDashboardDark);
+  useEffect(() => {
+    const sync = () => setDark(isDashboardDark());
+    window.addEventListener("dashboard-theme", sync);
+    return () => window.removeEventListener("dashboard-theme", sync);
+  }, []);
+  const toggle = () => {
+    const next = !dark;
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("dashboard-theme", next ? "dark" : "light");
+    window.dispatchEvent(new Event("dashboard-theme"));
+  };
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      className="h-10 w-10 flex items-center justify-center rounded-full text-foreground active:bg-muted"
+    >
+      {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+    </button>
+  );
+};
+
+const CALL_LABEL: Record<string, string> = { waiter: "Waiter", water: "Water", bill: "Bill", help: "Help", clean: "Clean the table" };
+const CALL_ICON: Record<string, typeof Bell> = { waiter: User, water: Droplets, bill: FileText, help: LifeBuoy, clean: SprayCan };
 
 const Logo = ({ name, logo }: { name: string; logo: string | null }) => {
   return (
-    <div className="font-normal flex space-x-2 items-center text-sm text-black py-1 relative z-20">
+    <div className="flex gap-2.5 items-center py-1 pl-1 pr-10 md:pr-0 relative z-20">
       {logo ? (
-        <img src={logo} alt={name} className="h-8 w-8 rounded-full flex-shrink-0 object-cover" />
+        <img src={logo} alt="" className="h-9 w-9 rounded-full flex-shrink-0 object-cover ring-1 ring-border" />
       ) : (
-        <div className="h-8 w-8 bg-gradient-to-br from-primary to-primary/60 rounded-full flex-shrink-0 flex items-center justify-center">
-          <span className="text-white font-bold text-sm">{name.charAt(0)}</span>
+        <div className="h-9 w-9 bg-accent text-primary rounded-full flex-shrink-0 flex items-center justify-center font-display text-base" aria-hidden>
+          {name.charAt(0)}
         </div>
       )}
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="font-semibold text-black dark:text-white truncate"
-      >
-        {name}
-      </motion.span>
+      <span className="font-display text-lg leading-tight text-foreground truncate">{name}</span>
     </div>
   );
 };
@@ -1045,10 +1104,9 @@ const Dashboard = ({
   newOrderTrigger: Order | null;
   onNewServiceCall: (call: ServiceCall) => void;
 }) => {
-  console.log('🎨 Dashboard render:', { activeTab, hasNewOrder: !!newOrderTrigger });
   return (
-    <div className="flex flex-1 overflow-hidden">
-      <div className="p-4 pb-28 md:p-8 lg:p-10 md:rounded-tl-2xl border-t md:border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex-1 w-full overflow-y-auto">
+    <div className="flex flex-1 overflow-hidden md:pt-3">
+      <main className="p-4 pb-28 md:p-8 lg:p-10 md:rounded-tl-[24px] md:border-l md:border-t border-border bg-card flex-1 w-full overflow-y-auto">
         {/* Centered content container with max-width */}
         <div className="max-w-6xl mx-auto w-full">
           <motion.div key={`top-${activeTab}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
@@ -1067,6 +1125,11 @@ const Dashboard = ({
           </div>
           
           <motion.div key={`rest-${activeTab}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
+          {activeTab === "floor" && <FloorView restaurantId={restaurantId} />}
+          {activeTab === "cashier" && <CashierView restaurantId={restaurantId} />}
+          {activeTab === "reports" && <ReportsView restaurantId={restaurantId} />}
+          {activeTab === "staff" && <StaffView restaurantId={restaurantId} />}
+          {activeTab === "setup" && <ServiceSetup restaurantId={restaurantId} />}
           {activeTab === "feedback" && <FeedbackView restaurantId={restaurantId} />}
           {activeTab === "service-calls" && <ServiceCallsPanel restaurantId={restaurantId} onNewCall={(call) => onNewServiceCall(call as ServiceCall)} />}
           {activeTab === "social" && <SocialLinksForm restaurantId={restaurantId} />}
@@ -1074,7 +1137,7 @@ const Dashboard = ({
           {activeTab === "profile" && <RestaurantProfile restaurantId={restaurantId} />}
           </motion.div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

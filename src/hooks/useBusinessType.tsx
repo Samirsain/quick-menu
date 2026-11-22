@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { isZenCafe } from "@/data/mockRestaurants";
 
 export const useBusinessType = (restaurantId: string | null) => {
   const [businessType, setBusinessType] = useState<'restaurant' | 'hotel'>('restaurant');
@@ -7,6 +8,12 @@ export const useBusinessType = (restaurantId: string | null) => {
 
   useEffect(() => {
     if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
+
+    if (isZenCafe(restaurantId)) {
+      setBusinessType('restaurant');
       setLoading(false);
       return;
     }
@@ -21,7 +28,7 @@ export const useBusinessType = (restaurantId: string | null) => {
 
         if (error) throw error;
         if (data) {
-          setBusinessType(data.business_type || 'restaurant');
+          setBusinessType(data.business_type === 'hotel' ? 'hotel' : 'restaurant');
         }
       } catch (error) {
         console.error("Error fetching business type:", error);

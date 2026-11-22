@@ -16,6 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import AIMenuImport from "./AIMenuImport";
 import { VegMark, BestsellerBadge } from "@/components/FoodBadges";
 
+const AI_IMPORT_ENABLED = import.meta.env.VITE_AI_IMPORT_ENABLED === "true";
+
 interface MenuItem {
   id: string;
   name: string;
@@ -28,6 +30,9 @@ interface MenuItem {
   size_variants: { name: string; price: number }[];
   is_veg: boolean | null;
   is_bestseller: boolean;
+  prep_minutes?: number | null;
+  addons?: { name: string; price: number }[];
+  is_chef_special?: boolean;
 }
 
 interface SizeVariant {
@@ -39,6 +44,7 @@ interface MenuCategory {
   id: string;
   name: string;
   display_order: number;
+  station?: string;
 }
 
 interface MenuManagementProps {
@@ -65,6 +71,9 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
     has_size_variants: false,
     is_veg: null as boolean | null,
     is_bestseller: false,
+    is_chef_special: false,
+    prep_minutes: "",
+    addons: [] as { name: string; price: string }[],
     size_variants: [
       { name: "Half", price: "" },
       { name: "Full", price: "" }
@@ -146,6 +155,15 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
     }
   };
 
+  // Which kitchen screen gets this category's dishes (KDS station filter); empty = every screen
+  const saveStation = async (cat: MenuCategory, value: string) => {
+    const station = value.trim().slice(0, 30);
+    if (station === (cat.station || "")) return;
+    const { error } = await supabase.from("menu_categories").update({ station } as never).eq("id", cat.id);
+    if (error) toast({ title: "Couldn't save the station", description: error.message, variant: "destructive" });
+    else { setCategories(prev => prev.map(c => (c.id === cat.id ? { ...c, station } : c))); toast({ title: station ? `${cat.name} → ${station}` : `${cat.name} shows on every kitchen screen` }); }
+  };
+
   const deleteCategory = async (id: string) => {
     if (!confirm("Delete this category? Items in it will become uncategorized.")) return;
 
@@ -182,12 +200,12 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
       return;
     }
 
-    // Check max size before compression (5MB)
-    const MAX_ORIGINAL_SIZE = 5 * 1024 * 1024;
+    // Phone camera photos are often 8-15MB; compression below shrinks them to ~1200px / ~80KB before upload
+    const MAX_ORIGINAL_SIZE = 25 * 1024 * 1024;
     if (file.size > MAX_ORIGINAL_SIZE) {
       toast({
         title: "Image too large",
-        description: "Please upload an image under 5MB",
+        description: "Please upload an image under 25MB",
         variant: "destructive",
       });
       e.currentTarget.value = "";
@@ -284,6 +302,11 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
         size_variants: processedSizeVariants,
         is_veg: formData.is_veg,
         is_bestseller: formData.is_bestseller,
+        is_chef_special: formData.is_chef_special,
+        prep_minutes: formData.prep_minutes ? Math.min(240, parseInt(formData.prep_minutes, 10) || 0) : null,
+        addons: formData.addons
+          .filter(a => a.name.trim() && a.price !== "")
+          .map(a => ({ name: a.name.trim().slice(0, 40), price: Math.max(0, parseFloat(a.price) || 0) })),
       };
 
       if (editingItem) {
@@ -398,6 +421,9 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
       has_size_variants: false,
       is_veg: null,
       is_bestseller: false,
+      is_chef_special: false,
+      prep_minutes: "",
+      addons: [],
       size_variants: [
         { name: "Half", price: "" },
         { name: "Full", price: "" }
@@ -418,6 +444,9 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
       has_size_variants: item.has_size_variants || false,
       is_veg: item.is_veg ?? null,
       is_bestseller: !!item.is_bestseller,
+      is_chef_special: !!item.is_chef_special,
+      prep_minutes: item.prep_minutes != null ? String(item.prep_minutes) : "",
+      addons: (item.addons || []).map(a => ({ name: a.name, price: String(a.price) })),
       size_variants: item.has_size_variants && item.size_variants?.length > 0
         ? item.size_variants.map(v => ({ name: v.name, price: v.price.toString() }))
         : [
@@ -440,8 +469,8 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
 
   // One card for every dish: a compact row on phones (photo left), a photo-on-top card from sm up
   const renderItem = (item: MenuItem) => (
-    <Card key={item.id} className="flex sm:block overflow-hidden border-0 shadow-md hover:shadow-xl rounded-2xl transition-all duration-300">
-      <div className="relative w-28 flex-shrink-0 self-stretch min-h-28 sm:w-auto sm:h-48 overflow-hidden bg-orange-50 dark:bg-zinc-800">
+    <Card key={item.id} className="flex sm:block overflow-hidden transition-colors hover:border-primary/30">
+      <div className="relative w-28 flex-shrink-0 self-stretch min-h-28 sm:w-auto sm:h-48 overflow-hidden bg-muted/60">
         {item.image_url ? (
           <DishPhoto url={item.image_url} widths={[240, 400, 800]} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 112px" alt={item.name} />
         ) : (
@@ -449,7 +478,7 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
         )}
         {item.is_bestseller && <BestsellerBadge className="absolute top-2 left-2 hidden sm:block" />}
         <div className="absolute top-2 right-2 hidden sm:flex gap-1.5">
-          {item.has_size_variants && <div className="px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-500 text-white">Sizes</div>}
+          {item.has_size_variants && <div className="px-2.5 py-1 rounded-full text-xs font-semibold bg-primary text-primary-foreground">Sizes</div>}
           <div className={`px-3 py-1 rounded-full text-xs font-semibold ${item.is_available ? "bg-accent text-accent-foreground" : "bg-destructive text-destructive-foreground"}`}>
             {item.is_available ? "Available" : "Unavailable"}
           </div>
@@ -480,7 +509,7 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
         {(item.is_bestseller || item.has_size_variants) && (
           <div className="flex sm:hidden flex-wrap gap-1.5">
             {item.is_bestseller && <BestsellerBadge />}
-            {item.has_size_variants && <span className="px-2 rounded-full text-[10.5px] font-semibold bg-violet-100 text-violet-700">Sizes</span>}
+            {item.has_size_variants && <span className="px-2 rounded-full text-[11px] font-semibold bg-accent text-accent-foreground">Sizes</span>}
           </div>
         )}
         <div className="mt-auto flex items-center justify-between gap-2 pt-1">
@@ -521,7 +550,7 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
           <Skeleton className="h-8 w-32 rounded-xl" />
           <div className="grid gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="rounded-2xl overflow-hidden border-0 shadow-md">
+              <div key={i} className="rounded-[20px] overflow-hidden border">
                 <Skeleton className="h-48 w-full" />
                 <div className="p-4 space-y-3">
                   <div className="flex justify-between">
@@ -546,16 +575,17 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
       <>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2">Menu Management</h2>
+          <h2 className="text-2xl font-semibold tracking-tight mb-1">Menu</h2>
           <p className="text-sm md:text-base text-muted-foreground">
             Add and manage your menu items and categories
           </p>
         </div>
-        <div className="grid grid-cols-3 sm:flex gap-2 w-full sm:w-auto">
-          {/* AI Import Button */}
+        <div className={`grid ${AI_IMPORT_ENABLED ? "grid-cols-3" : "grid-cols-2"} sm:flex gap-2 w-full sm:w-auto`}>
+          {/* AI Import: hidden until its edge function + RPC are deployed (see README) */}
+          {AI_IMPORT_ENABLED && (
           <Dialog open={aiImportOpen} onOpenChange={setAiImportOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="flex-1 sm:flex-none text-xs sm:text-sm gap-1.5 border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-400 dark:hover:bg-violet-950/20">
+              <Button variant="outline" className="flex-1 sm:flex-none text-xs sm:text-sm gap-1.5 text-accent-foreground">
                 <ScanSearch className="h-4 w-4" />
                 AI Import
               </Button>
@@ -574,6 +604,7 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
               />
             </DialogContent>
           </Dialog>
+          )}
 
           <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
             <DialogTrigger asChild>
@@ -717,6 +748,55 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
                     onCheckedChange={(checked) => setFormData({ ...formData, is_bestseller: checked })}
                   />
                 </div>
+                <div className="flex items-center justify-between gap-3 rounded-xl border p-3">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="chef-pick" className="text-sm font-medium">Chef's pick</Label>
+                    <p className="text-xs text-muted-foreground">A second badge for dishes you recommend</p>
+                  </div>
+                  <Switch
+                    id="chef-pick"
+                    checked={formData.is_chef_special}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_chef_special: checked })}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-xl border p-3">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="prep-min" className="text-sm font-medium">Kitchen time</Label>
+                    <p className="text-xs text-muted-foreground">Shown to guests as "12 min"</p>
+                  </div>
+                  <div className="relative w-24">
+                    <Input id="prep-min" inputMode="numeric" value={formData.prep_minutes} placeholder="12"
+                      onChange={(e) => setFormData({ ...formData, prep_minutes: e.target.value.replace(/\D/g, "").slice(0, 3) })} className="pr-10" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">min</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Add-ons: extras a guest can tick (priced on the server from this list) */}
+              <div className="space-y-3 p-4 rounded-xl bg-muted/50 border">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">Add-ons</p>
+                  <p className="text-xs text-muted-foreground">Extras like "Extra cheese +₹40". Guests pick them before adding the dish.</p>
+                </div>
+                {formData.addons.map((a, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input aria-label={`Add-on ${i + 1} name`} value={a.name} placeholder="Extra cheese" maxLength={40}
+                      onChange={(e) => setFormData({ ...formData, addons: formData.addons.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
+                    <div className="relative w-28 flex-shrink-0">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">+₹</span>
+                      <Input aria-label={`Add-on ${i + 1} price`} inputMode="decimal" value={a.price} placeholder="40" className="pl-9"
+                        onChange={(e) => setFormData({ ...formData, addons: formData.addons.map((x, j) => (j === i ? { ...x, price: e.target.value.replace(/[^0-9.]/g, "") } : x)) })} />
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" aria-label={`Remove add-on ${i + 1}`}
+                      onClick={() => setFormData({ ...formData, addons: formData.addons.filter((_, j) => j !== i) })}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" disabled={formData.addons.length >= 10}
+                  onClick={() => setFormData({ ...formData, addons: [...formData.addons, { name: "", price: "" }] })}>
+                  <Plus className="h-4 w-4 mr-1" /> Add an add-on
+                </Button>
               </div>
 
               {/* Size Variants Section */}
@@ -796,7 +876,7 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
                       </Button>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      💡 When size options are enabled, customers will choose a size before adding to cart.
+                      When size options are enabled, customers will choose a size before adding to cart.
                       The base price above will be used as default if no size is selected.
                     </p>
                   </div>
@@ -826,19 +906,28 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
       </div>
 
       {categories.length > 0 && (
-        <Card className="p-4 md:p-6 border-0 shadow-md rounded-2xl">
-          <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Categories</h3>
+        <Card className="p-4 md:p-6">
+          <h3 className="text-sm font-semibold mb-3">Categories</h3>
           <div className="flex flex-wrap gap-2">
             {categories.map(cat => {
               const count = groupedItems[cat.id]?.length || 0;
               return (
-                <div key={cat.id} className="flex items-center gap-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 py-2 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                  <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200 capitalize">{cat.name}</span>
-                  <span className="text-xs text-muted-foreground bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded-full font-medium">{count}</span>
+                <div key={cat.id} className="flex items-center gap-2 bg-card border border-border px-3 py-2 rounded-full hover:border-primary/40 transition-shadow">
+                  <span className="font-semibold text-sm text-foreground capitalize">{cat.name}</span>
+                  <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full font-medium">{count}</span>
+                  <input
+                    aria-label={`Kitchen station for ${cat.name}`}
+                    defaultValue={cat.station || ""}
+                    placeholder="Station"
+                    maxLength={30}
+                    onBlur={(e) => saveStation(cat, e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                    className="w-20 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/60 border-b border-dashed border-border focus:border-primary focus:outline-none"
+                  />
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-5 w-5 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-950/30 rounded-full"
+                    className="h-5 w-5 hover:bg-destructive/10 hover:text-destructive rounded-full"
                     onClick={() => deleteCategory(cat.id)}
                   >
                     <Trash2 className="h-3 w-3" />
@@ -853,7 +942,7 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
       {categories.map(category => (
         groupedItems[category.id]?.length > 0 && (
           <div key={category.id} className="space-y-4">
-            <h3 className="text-xl md:text-2xl font-extrabold tracking-tight capitalize text-zinc-900 dark:text-white">{category.name}</h3>
+            <h3 className="font-display text-2xl leading-tight capitalize text-foreground">{category.name}</h3>
             <div className="grid gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {groupedItems[category.id].map(renderItem)}
             </div>
@@ -871,7 +960,7 @@ const MenuManagement = ({ restaurantId }: MenuManagementProps) => {
       )}
 
       {menuItems.length === 0 && !loading && (
-        <Card className="p-12 text-center border-0 shadow-md rounded-2xl">
+        <Card className="p-12 text-center">
           <p className="text-muted-foreground mb-4">No menu items yet</p>
           <Button variant="hero" onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />

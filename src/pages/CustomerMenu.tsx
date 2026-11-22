@@ -5,24 +5,33 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Minus, X, Search, Moon, Sun, Clock, ArrowRight, ArrowLeft, ChevronRight, Receipt, MoreVertical, ShoppingBag, Leaf,
-  Instagram, Facebook, Twitter, Globe, Loader2, Star, CupSoda, IceCreamCone, ConciergeBell, Salad, Pizza, Croissant, UtensilsCrossed
+  Instagram, Facebook, Twitter, Globe, Loader2, Star, CupSoda, IceCreamCone, ConciergeBell, Salad, Pizza, Croissant, UtensilsCrossed, Trash2,
+  Sparkles, ArrowUpRight, ArrowUp
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { isRateLimited, RATE_LIMITS, isValidUUID, isValidTableNumber, sanitizeInput, getClientFingerprint } from "@/lib/security";
+import { isRateLimited, RATE_LIMITS, isValidTableNumber, sanitizeInput, getClientFingerprint } from "@/lib/security";
 import { registerReconnectCallback, unregisterReconnectCallback } from "@/lib/realtimeOptimization";
-import ServiceCallButton from "@/components/ServiceCallButton";
-import { VegMark, BestsellerBadge } from "@/components/FoodBadges";
-import UpiPayCard from "@/components/UpiPayCard";
+import { VegMark, BestsellerBadge, ChefPickBadge } from "@/components/FoodBadges";
+import { useTableSeat } from "@/hooks/useTableSeat";
+import { errorCopy, joinErrorCopy, notifyStaff, type CartLine, type JoinResult, type SeatOrder } from "@/lib/tableService";
+import { DEMO_PIN } from "@/lib/demoTable";
+import TableGate from "@/components/guest/TableGate";
+import BillSheet from "@/components/guest/BillSheet";
+import WaiterCall from "@/components/guest/WaiterCall";
+import WaitPanel from "@/components/guest/WaitPanel";
+import { EASE, SHEET, prefersReducedMotion, CloseButton, SheetHeader, PrimaryButton, SecondaryButton, DrawnCheck, Stepper, inputClass } from "@/components/guest/ui";
 import { celebrate } from "@/lib/celebrate";
 import { sizedImage } from "@/lib/imageUpload";
 import { DishPhoto } from "@/components/DishPhoto";
 import CountUp from "@/components/CountUp";
 import { useBusinessType } from "@/hooks/useBusinessType";
+import { isZenCafe, getMockRestaurant, getMockCategories, getMockMenuItems } from "@/data/mockRestaurants";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -43,26 +52,32 @@ const CustomerMenu = () => {
   const [comment, setComment] = useState("");
   const [reviewStep, setReviewStep] = useState<"rate" | "google">("rate");
   const [commentCopied, setCommentCopied] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState<any>(null);
-  const [activeOrders, setActiveOrders] = useState<any[]>([]);
+  // The table: PIN-checked seating, live orders, bill, calls (src/hooks/useTableSeat.ts)
+  const seat = useTableSeat(restaurantId, (e) => toast({ title: "An order couldn't be sent", description: errorCopy(e), variant: "destructive" }));
+  const activeOrders: SeatOrder[] = useMemo(() => seat.state?.orders ?? [], [seat.state?.orders]);
+  const currentOrder = activeOrders.filter(o => !["rejected", "cancelled"].includes(o.status)).pop() ?? null;
+  const [browsing, setBrowsing] = useState(false); // "Just look at the menu" from the PIN screen
+  const [orderNote, setOrderNote] = useState("");
+  const [reviewed, setReviewed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCartDialog, setShowCartDialog] = useState(false);
   const [showOrderStatusDialog, setShowOrderStatusDialog] = useState(false);
-  const [showOrderHistoryDialog, setShowOrderHistoryDialog] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  const [showBill, setShowBill] = useState(false);
+  // Splash shows the restaurant name while it loads: at least 0.7s so it doesn't flash, never longer than loading needs
+  const [splashMinDone, setSplashMinDone] = useState(false);
   // Review popup replaces any open dialog so it is never hidden behind the cart/order sheets
   const openFeedback = () => {
     setShowCartDialog(false);
     setShowOrderConfirmation(false);
     setShowOrderStatusDialog(false);
-    setShowOrderHistoryDialog(false);
+    setShowBill(false);
     setShowFeedback(true);
   };
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('customer-menu-theme') === 'dark');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [vegOnly, setVegOnly] = useState(false);
   const [serviceDisabled, setServiceDisabled] = useState(false);
-  const [restaurantContact, setRestaurantContact] = useState<{ name: string; email: string; phone: string | null } | null>(null);
+  const [restaurantContact, setRestaurantContact] = useState<{ name: string } | null>(null);
   const [imageLoaded, setImageLoaded] = useState<Record<string, boolean>>({});
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -79,7 +94,6 @@ const CustomerMenu = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const menuSessionId = urlParams.get('session');
   
-  const sessionId = useRef(localStorage.getItem("session_id") || `session_${restaurantId}_${Date.now()}`).current;
   
   // Validate session on load and periodically
   useEffect(() => {
@@ -134,20 +148,31 @@ const CustomerMenu = () => {
   const { data: restaurant, isLoading: isLoadingRestaurant } = useQuery({
     queryKey: ['restaurant', restaurantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("restaurants")
-        .select("social_links, name, description, logo_url, cover_url, is_active, email, phone, orders_enabled, waiter_call_enabled, upi_id")
-        .eq("id", restaurantId)
-        .single();
-      
-      if (error) throw error;
-      
-      if (data && !data.is_active) {
-        setServiceDisabled(true);
-        setRestaurantContact({ name: data.name, email: data.email, phone: data.phone });
+      if (isZenCafe(restaurantId)) {
+        return getMockRestaurant(restaurantId);
       }
-      
-      return data;
+
+      try {
+        const { data, error } = await (supabase
+          .from("restaurants") as any)
+          .select("social_links, name, description, logo_url, cover_url, is_active, orders_enabled, waiter_call_enabled, upi_id, require_table_pin")
+          .eq("id", restaurantId)
+          .single();
+        
+        if (error) throw error;
+        
+        if (data && !data.is_active) {
+          setServiceDisabled(true);
+          setRestaurantContact({ name: data.name });
+        }
+        
+        return data;
+      } catch (err) {
+        if (isZenCafe(restaurantId)) {
+          return getMockRestaurant(restaurantId);
+        }
+        throw err;
+      }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
@@ -158,29 +183,39 @@ const CustomerMenu = () => {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
+  const needsPin = !!(restaurant as { require_table_pin?: boolean } | undefined)?.require_table_pin;
+  const showSplash = !splashMinDone || isLoadingRestaurant || (needsPin && !seat.checked);
   const ordersEnabled = restaurant?.orders_enabled !== false;
   const waiterCallEnabled = restaurant?.waiter_call_enabled !== false;
   const googleReviewRaw = (restaurant?.social_links as any)?.google_review;
   const googleReviewUrl: string | null = typeof googleReviewRaw === "string" && /^https:\/\//i.test(googleReviewRaw) ? googleReviewRaw : null;
   const upiId: string | null = restaurant?.upi_id || null;
-  // What the table owes: rejected/cancelled orders are never billed
-  const billTotal = useMemo(() => activeOrders
-    .filter(o => o.status !== "rejected" && o.status !== "cancelled")
-    .reduce((sum, o) => sum + (o.items?.items?.reduce((s: number, i: { price: number; quantity?: number }) => s + i.price * (i.quantity || 1), 0) || 0), 0),
-  [activeOrders]);
+  // What the table owes, from the live bill (discount, service charge and GST included)
+  const billTotal = seat.state?.bill.total ?? 0;
 
   const { data: menuItems = [], isLoading: isLoadingItems } = useQuery({
     queryKey: ['menuItems', restaurantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("menu_items")
-        .select("id, restaurant_id, name, description, price, image_url, is_available, category_id, has_size_variants, size_variants, is_veg, is_bestseller")
-        .eq("restaurant_id", restaurantId)
-        .eq("is_available", true) // Only fetch available items for customers
-        .order("created_at", { ascending: true });
-      
-      if (error) throw error;
-      return data || [];
+      if (isZenCafe(restaurantId)) {
+        return getMockMenuItems(restaurantId);
+      }
+
+      try {
+        const { data, error } = await (supabase
+          .from("menu_items") as any)
+          .select("id, restaurant_id, name, description, price, image_url, is_available, category_id, has_size_variants, size_variants, is_veg, is_bestseller, prep_minutes, addons, is_chef_special")
+          .eq("restaurant_id", restaurantId)
+          .eq("is_available", true) // Only fetch available items for customers
+          .order("created_at", { ascending: true });
+        
+        if (error) throw error;
+        return data || [];
+      } catch (err) {
+        if (isZenCafe(restaurantId)) {
+          return getMockMenuItems(restaurantId);
+        }
+        throw err;
+      }
     },
     staleTime: 3 * 60 * 1000, // 3 minutes - shorter for menu items
     gcTime: 30 * 60 * 1000,
@@ -194,14 +229,25 @@ const CustomerMenu = () => {
   const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ['categories', restaurantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("menu_categories")
-        .select("id, restaurant_id, name, display_order")
-        .eq("restaurant_id", restaurantId)
-        .order("display_order", { ascending: true });
-      
-      if (error) throw error;
-      return data || [];
+      if (isZenCafe(restaurantId)) {
+        return getMockCategories(restaurantId);
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("menu_categories")
+          .select("id, restaurant_id, name, display_order")
+          .eq("restaurant_id", restaurantId)
+          .order("display_order", { ascending: true });
+        
+        if (error) throw error;
+        return data || [];
+      } catch (err) {
+        if (isZenCafe(restaurantId)) {
+          return getMockCategories(restaurantId);
+        }
+        throw err;
+      }
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -223,222 +269,103 @@ const CustomerMenu = () => {
     },
   });
 
-  // Dark mode with pure black
+  // Night mode uses the warm night palette from index.css (.dark), never pure black
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.style.setProperty('--background', '0 0% 0%');
-      document.body.style.backgroundColor = '#000000';
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.style.removeProperty('--background');
-      document.body.style.backgroundColor = '';
-    }
+    document.documentElement.classList.toggle('dark', isDarkMode);
     localStorage.setItem('customer-menu-theme', isDarkMode ? 'dark' : 'light');
+    // Night mode belongs to the menu only: don't let it leak into the dashboard/landing after navigating away
+    return () => document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
 
+  // Guest look (slate palette + Geist, see .guest in index.css) only while the menu is open
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 1500);
+    document.documentElement.classList.add('guest');
+    return () => document.documentElement.classList.remove('guest');
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSplashMinDone(true), 700);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("session_id", sessionId);
-    if (restaurantId) {
-      cleanupOldOrders();
-      incrementViewMutation.mutate();
-      loadSessionOrder();
-    }
+    if (restaurantId && !seat.api?.demo) incrementViewMutation.mutate(); // the demo has no database row to count
   }, [restaurantId]);
 
-  // Subscribe to realtime updates when we have active orders
+  // The table number follows the seat (PIN screen, or the first order at a no-PIN restaurant)
   useEffect(() => {
-    if (activeOrders.length > 0 && restaurantId) {
-      const cleanup = subscribeToOrderUpdates();
-      return cleanup;
-    }
-    // Re-subscribe when a new order joins the session so its status updates aren't ignored
-  }, [activeOrders.length, restaurantId]);
+    if (seat.seat?.table && !tableFromQR) setTableNumber(seat.seat.table);
+  }, [seat.seat?.table, tableFromQR]);
 
-  // Polling fallback - refresh orders every 10 seconds as backup (only when orders are incomplete)
+  // Tell the guest when an order moves, and ask for a rating once everything has been served
+  const lastStatuses = useRef<Record<string, string> | null>(null);
   useEffect(() => {
-    if (activeOrders.length === 0 || !restaurantId) return;
-    
-    const isAllDone = activeOrders.every(o => ['completed', 'rejected', 'cancelled'].includes(o.status));
-    if (isAllDone) return; // Stop polling once all orders are in a terminal state
-
-    const pollOrders = async () => {
-      const orderIdsStr = localStorage.getItem(`orders_${restaurantId}_${sessionId}`);
-      if (!orderIdsStr) return;
-      const orderIds = JSON.parse(orderIdsStr);
-      const { data: orders } = await supabase.from("orders").select("*").in("id", orderIds);
-      if (orders && orders.length > 0) {
-        setActiveOrders(orders);
-        setCurrentOrder(orders[orders.length - 1]);
-        // Only show feedback ONCE when all orders complete - use ref to check
-        if (orders.every(o => o.status === 'completed') && !feedbackDismissedRef.current) {
-          feedbackDismissedRef.current = true;
-          setFeedbackDismissed(true);
-          setTimeout(openFeedback, 500);
+    const orders = seat.state?.orders;
+    if (!orders) return;
+    const prev = lastStatuses.current;
+    if (prev) {
+      for (const o of orders) {
+        if (!prev[o.id] || prev[o.id] === o.status) continue;
+        const no = `#${o.order_number.replace(/^ORD0*/, "")}`;
+        if (o.status === "accepted") toast({ title: "Order confirmed", description: `The kitchen has order ${no}.`, duration: 5000 });
+        else if (o.status === "preparing") toast({ title: "Being prepared", description: `The kitchen has started on order ${no}.`, duration: 5000 });
+        else if (o.status === "ready") {
+          navigator.vibrate?.([200, 100, 200]);
+          toast({ title: "Your food is ready", description: `Order ${no} is on its way to your ${locationLabelLower}.`, duration: 8000 });
+        } else if (o.status === "rejected") {
+          navigator.vibrate?.([300, 100, 300]);
+          toast({ title: "Order not accepted", description: `Order ${no} was declined. Please ask a member of staff.`, variant: "destructive", duration: 10000 });
         }
       }
-    };
-
-    const interval = setInterval(pollOrders, 10000);
-    return () => clearInterval(interval);
-  }, [activeOrders.length, restaurantId, sessionId]);
-
-  const cleanupOldOrders = () => {
-    const orderIdsStr = localStorage.getItem(`orders_${restaurantId}_${sessionId}`);
-    const orderTimestampStr = localStorage.getItem(`orders_timestamp_${restaurantId}_${sessionId}`);
-    if (orderIdsStr && orderTimestampStr) {
-      const timestamp = parseInt(orderTimestampStr);
-      // Expire orders after 90 minutes (same as menu session)
-      if (timestamp < Date.now() - 90 * 60 * 1000) {
-        localStorage.removeItem(`orders_${restaurantId}_${sessionId}`);
-        localStorage.removeItem(`orders_timestamp_${restaurantId}_${sessionId}`);
-        setActiveOrders([]);
-        setCurrentOrder(null);
-      }
     }
-  };
-
-  const loadSessionOrder = async () => {
-    const orderIdsStr = localStorage.getItem(`orders_${restaurantId}_${sessionId}`);
-    if (orderIdsStr) {
-      const orderIds = JSON.parse(orderIdsStr);
-      const { data: orders } = await supabase.from("orders").select("*").in("id", orderIds);
-      if (orders && orders.length > 0) {
-        setActiveOrders(orders);
-        setCurrentOrder(orders[orders.length - 1]);
-        setTableNumber(orders[orders.length - 1].table_number);
-        // Don't auto-show feedback on page load - let user view history first
-      }
+    lastStatuses.current = Object.fromEntries(orders.map(o => [o.id, o.status]));
+    const served = orders.some(o => o.status === "completed") && orders.every(o => ["completed", "rejected", "cancelled"].includes(o.status));
+    if (prev && served && !feedbackDismissedRef.current && !reviewed && !orders.some(o => localStorage.getItem(`feedback_submitted_${o.id}`))) {
+      feedbackDismissedRef.current = true;
+      setFeedbackDismissed(true);
+      setTimeout(openFeedback, 900);
     }
-  };
-
-  const subscribeToOrderUpdates = () => {
-    const orderIdsStr = localStorage.getItem(`orders_${restaurantId}_${sessionId}`);
-    if (!orderIdsStr) return () => {};
-    const orderIds: string[] = JSON.parse(orderIdsStr);
-    if (orderIds.length === 0) return () => {};
-
-    // Use unique channel name per session
-    const channelName = `orders-${restaurantId}-${sessionId}`;
-    
-    // Remove any existing channel with same name first
-    const existingChannels = supabase.getChannels();
-    existingChannels.forEach(ch => {
-      if (ch.topic.includes(channelName)) {
-        supabase.removeChannel(ch);
-      }
-    });
-    
-    const setupChannel = () => {
-      if (import.meta.env.DEV) console.log('📡 Setting up realtime for orders:', orderIds);
-      const channel = supabase
-        .channel(channelName, { config: { broadcast: { self: true } } })
-        .on('postgres_changes', { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'orders',
-          filter: `restaurant_id=eq.${restaurantId}`
-        }, (payload: any) => {
-          // Filter client-side for our specific orders
-          if (!orderIds.includes(payload.new.id)) return;
-          if (import.meta.env.DEV) console.log('📦 Order update received:', payload.new.id, payload.new.status);
-          
-          setActiveOrders(prev => {
-            const updated = prev.map(order => order.id === payload.new.id ? { ...payload.new } : order);
-            // Only show feedback ONCE when all orders complete
-            if (updated.every(o => o.status === 'completed') && !feedbackDismissedRef.current) {
-              feedbackDismissedRef.current = true;
-              setFeedbackDismissed(true);
-              setTimeout(openFeedback, 500);
-            }
-            return updated;
-          });
-          setCurrentOrder(prev => prev?.id === payload.new.id ? { ...payload.new } : prev);
-          
-          if (payload.new.status === "completed" && payload.old?.status !== "completed") {
-            if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
-            toast({ title: "Your order is ready", description: `Order #${payload.new.order_number} is on its way to your table.`, duration: 8000 });
-          } else if (payload.new.status === "accepted" && payload.old?.status === "pending") {
-            toast({ title: "Order accepted", description: `Order #${payload.new.order_number} has been confirmed.`, duration: 6000 });
-          } else if (payload.new.status === "preparing" && payload.old?.status === "accepted") {
-            toast({ title: "Being prepared", description: `The kitchen has started on order #${payload.new.order_number}.`, duration: 5000 });
-          } else if (payload.new.status === "rejected") {
-            if ('vibrate' in navigator) navigator.vibrate([300, 100, 300]);
-            toast({ title: "Order not accepted", description: `Order #${payload.new.order_number} was declined. Please ask a member of staff.`, variant: "destructive", duration: 10000 });
-          } else if (payload.new.status === "cancelled") {
-            toast({ title: "Order cancelled", description: `Order #${payload.new.order_number} was cancelled.`, variant: "destructive", duration: 8000 });
-          }
-        })
-        .subscribe((status, err) => {
-          if (import.meta.env.DEV) console.log('📡 Realtime subscription status:', status, err || '');
-        });
-      return channel;
-    };
-
-    let channel = setupChannel();
-    
-    registerReconnectCallback(channelName, () => {
-      try { supabase.removeChannel(channel); } catch (e) { /* ignore */ }
-      channel = setupChannel();
-    });
-
-    return () => {
-      unregisterReconnectCallback(channelName);
-      try { supabase.removeChannel(channel); } catch (e) { /* ignore */ }
-    };
-  };
+  }, [seat.state?.orders]);
 
   // Cart functions - now with size variant support
   // Cart key is itemId + selectedSize to allow same item with different sizes
   const getCartItemKey = (itemId: string, selectedSize?: string) => selectedSize ? `${itemId}_${selectedSize}` : itemId;
   
-  const getCartItemQuantity = useCallback((itemId: string, selectedSize?: string) => {
-    const key = getCartItemKey(itemId, selectedSize);
-    return cart.find(i => getCartItemKey(i.id, i.selectedSize) === key)?.quantity || 0;
-  }, [cart]);
+  const lineKey = (i: any) => i.cartKey ?? getCartItemKey(i.id, i.selectedSize);
+  const getCartItemQuantity = useCallback((itemId: string, selectedSize?: string) =>
+    cart.filter(i => i.id === itemId && (i.selectedSize || undefined) === (selectedSize || undefined)).reduce((s, i) => s + (i.quantity || 1), 0), [cart]);
 
   // Get total quantity for an item (all sizes combined)
   const getTotalItemQuantity = useCallback((itemId: string) => {
     return cart.filter(i => i.id === itemId).reduce((sum, i) => sum + (i.quantity || 1), 0);
   }, [cart]);
   
-  const addToCart = useCallback((item: any, selectedSize?: { name: string; price: number }) => {
+  // A dish with add-ons or a note is its own cart line: "Paneer Tikka · Extra cheese" and plain "Paneer Tikka" don't merge
+  const addToCart = useCallback((item: any, selectedSize?: { name: string; price: number }, extras?: { addons: { name: string; price: number }[]; note: string; qty?: number }) => {
     setCart(prev => {
-      const cartKey = getCartItemKey(item.id, selectedSize?.name);
-      const existing = prev.find(i => getCartItemKey(i.id, i.selectedSize) === cartKey);
-      
-      if (existing) {
-        return prev.map(i => getCartItemKey(i.id, i.selectedSize) === cartKey 
-          ? { ...i, quantity: (i.quantity || 1) + 1 } 
-          : i
-        );
-      }
-      
-      // Add new item with size info
-      const cartItem = {
-        ...item,
-        quantity: 1,
-        selectedSize: selectedSize?.name,
-        displayPrice: selectedSize?.price ?? item.price,
-      };
-      return [...prev, cartItem];
+      const addons = extras?.addons ?? [];
+      const note = (extras?.note ?? "").trim().slice(0, 120);
+      const base = getCartItemKey(item.id, selectedSize?.name);
+      const cartKey = addons.length || note ? `${base}::${addons.map(a => a.name).sort().join("+")}::${note}` : base;
+      const qty = extras?.qty ?? 1;
+      const existing = prev.find(i => lineKey(i) === cartKey);
+      if (existing) return prev.map(i => (i === existing ? { ...i, quantity: (i.quantity || 1) + qty } : i));
+      return [...prev, {
+        ...item, cartKey, quantity: qty, selectedSize: selectedSize?.name, addons: addons.map(a => a.name), note,
+        displayPrice: (selectedSize?.price ?? item.price) + addons.reduce((s, a) => s + Number(a.price), 0),
+      }];
     });
   }, []);
 
   const updateQuantity = useCallback((itemId: string, delta: number, selectedSize?: string) => {
     const cartKey = getCartItemKey(itemId, selectedSize);
-    setCart(prev => prev.map(item => {
-      if (getCartItemKey(item.id, item.selectedSize) === cartKey) {
-        const newQty = (item.quantity || 1) + delta;
-        return newQty > 0 ? { ...item, quantity: newQty } : item;
-      }
-      return item;
-    }).filter(item => item.quantity > 0));
+    setCart(prev => prev.map(item => (lineKey(item) === cartKey ? { ...item, quantity: (item.quantity || 1) + delta } : item))
+      .filter(item => (item.quantity || 0) > 0));
+  }, []);
+
+  const updateLine = useCallback((cartKey: string, delta: number) => {
+    setCart(prev => prev.map(item => (lineKey(item) === cartKey ? { ...item, quantity: (item.quantity || 1) + delta } : item))
+      .filter(item => (item.quantity || 0) > 0));
   }, []);
 
   const removeFromCart = useCallback((itemId: string, selectedSize?: string) => {
@@ -446,21 +373,29 @@ const CustomerMenu = () => {
     setCart(prev => prev.filter(item => getCartItemKey(item.id, item.selectedSize) !== cartKey));
   }, []);
 
+  const clearCart = useCallback(() => {
+    setCart([]);
+  }, []);
+
 
   const placeOrder = async () => {
-    // Prevent duplicate orders - if already placing, ignore
-    if (isPlacingOrder) return;
-    
-    if (!tableNumber || cart.length === 0) {
+    if (isPlacingOrder) return; // one tap, one order
+    const table = (seat.seat?.table || tableNumber).trim();
+    if (!table || cart.length === 0) {
       toast({ title: "Missing information", description: `Please enter ${locationLabelLower} number and add items`, variant: "destructive" });
       return;
     }
-    if (!isValidTableNumber(tableNumber)) {
+    if (!isValidTableNumber(table)) {
       toast({ title: `Invalid ${locationLabelLower} number`, description: `${locationLabel} number must be alphanumeric (max 10 chars)`, variant: "destructive" });
       return;
     }
-    if (!restaurantId || !isValidUUID(restaurantId)) {
-      toast({ title: "Invalid restaurant", description: "Please scan a valid QR code", variant: "destructive" });
+    if (needsPin && (!seat.seat || seat.state?.status === "closed")) {
+      // Browsing without the PIN, or the last bill is paid: ask for the PIN now (the cart stays)
+      const closed = seat.state?.status === "closed";
+      if (closed) seat.leave();
+      setShowCartDialog(false);
+      setBrowsing(false);
+      toast({ title: "Enter your table PIN", description: closed ? "Your last bill is paid. The PIN starts a new one." : "Ordering needs the PIN on your table stand." });
       return;
     }
     if (isRateLimited(`order_${getClientFingerprint()}`, RATE_LIMITS.order)) {
@@ -468,99 +403,64 @@ const CustomerMenu = () => {
       return;
     }
 
-    // Check network connectivity before placing order
-    if (!navigator.onLine) {
-      toast({ title: "No internet connection", description: "Please check your connection and try again", variant: "destructive" });
-      return;
-    }
-
-    // Set loading state to prevent multiple clicks
     setIsPlacingOrder(true);
-
     try {
-      const orderNum = `ORD${Date.now().toString().slice(-6)}`;
-      const orderItems = cart.map(item => ({ 
-        id: item.id, 
-        name: item.name, 
-        price: item.displayPrice ?? item.price, 
-        quantity: item.quantity || 1, 
-        image_url: item.image_url,
-        selectedSize: item.selectedSize || null,
-      }));
-      
-      // Add timeout to prevent hanging requests
-      const orderPromise = supabase
-        .from("orders")
-        .insert([{ restaurant_id: restaurantId, table_number: tableNumber, items: { items: orderItems }, order_number: orderNum, status: 'pending', session_id: sessionId }])
-        .select()
-        .single();
-
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Order request timed out')), 15000)
-      );
-
-      const { data: newOrder, error } = await Promise.race([orderPromise, timeoutPromise]) as any;
-
-      if (error) throw new Error(error.message);
-      if (!newOrder) throw new Error('No order data returned');
-
-      // Send notification to restaurant owner (client-side call for reliability)
-      try {
-        const notificationPromise = supabase.functions.invoke('send-order-notification', {
-          body: { record: newOrder }
-        });
-        
-        const notificationTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Notification timeout')), 10000)
-        );
-
-        const { error: notificationError } = await Promise.race([notificationPromise, notificationTimeout]) as any;
-        
-        if (notificationError) {
-          console.warn('Notification failed:', notificationError);
-          // Retry once after a short delay
-          setTimeout(async () => {
-            try {
-              await supabase.functions.invoke('send-order-notification', {
-                body: { record: newOrder }
-              });
-            } catch (retryErr) {
-              console.warn('Notification retry failed:', retryErr);
-            }
-          }, 2000);
-        }
-      } catch (notifErr) {
-        console.warn('Notification error:', notifErr);
-        // Don't fail the order if notification fails
-      }
-
-      setActiveOrders(prev => [...prev, newOrder]);
-      setCurrentOrder(newOrder);
-      setOrderNumber(orderNum);
-      
-      const existingOrders = localStorage.getItem(`orders_${restaurantId}_${sessionId}`);
-      const orderIds = existingOrders ? JSON.parse(existingOrders) : [];
-      orderIds.push(newOrder.id);
-      localStorage.setItem(`orders_${restaurantId}_${sessionId}`, JSON.stringify(orderIds));
-      if (!existingOrders) localStorage.setItem(`orders_timestamp_${restaurantId}_${sessionId}`, Date.now().toString());
-      
+      const lines: CartLine[] = cart.map(i => ({ id: i.id, qty: i.quantity || 1, size: i.selectedSize || null, addons: i.addons || [], note: i.note || "" }));
+      const { order, queued } = await seat.placeOrder(table, lines, orderNote.trim() || null);
       setCart([]);
+      setOrderNote("");
       setShowCartDialog(false);
+      if (queued || !order) {
+        toast({ title: "Saved while you're offline", description: "It goes to the kitchen as soon as your phone is back online.", duration: 8000 });
+        return;
+      }
+      setOrderNumber(order.order_number.replace(/^ORD0*/, ""));
       setShowOrderConfirmation(true);
       celebrate();
-      toast({ title: "Order placed", description: `Order #${orderNum} has been sent to the kitchen.`, duration: 5000 });
-    } catch (err: any) {
-      console.error('Order placement error:', err);
-      toast({ 
-        title: "Failed to create order", 
-        description: err.message === 'Order request timed out' 
-          ? "Request timed out. Please check your connection and try again." 
-          : err.message || "Please try again.", 
-        variant: "destructive" 
+    } catch (err) {
+      const join = err as JoinResult;
+      toast({
+        title: "Order not sent",
+        description: join && join.ok === false ? joinErrorCopy(join, table, locationLabel) : errorCopy(err),
+        variant: "destructive",
       });
     } finally {
-      // Always reset loading state
       setIsPlacingOrder(false);
+    }
+  };
+
+  // Put an order's dishes back in the cart: "Order again", or "Change" on an order the kitchen hasn't accepted yet
+  const toCart = (o: SeatOrder, keepNotes: boolean) => {
+    const missing: string[] = [];
+    for (const l of o.items?.items || []) {
+      const m: any = menuItems.find((x: any) => x.id === l.id);
+      if (!m) { missing.push(l.name); continue; }
+      const parts = (l.options || "").split(" · ").filter(Boolean);
+      const addons = (m.addons || []).filter((a: { name: string }) => parts.includes(a.name));
+      const note = keepNotes ? parts.filter(x => !addons.some((a: { name: string }) => a.name === x)).join(" · ") : "";
+      const size = l.selectedSize ? m.size_variants?.find((v: { name: string }) => v.name === l.selectedSize) : undefined;
+      addToCart(m, size, { addons, note, qty: l.quantity || 1 });
+    }
+    return missing;
+  };
+  const orderAgain = (o: SeatOrder) => {
+    const missing = toCart(o, false);
+    setShowBill(false);
+    setShowOrderStatusDialog(false);
+    setShowCartDialog(true);
+    if (missing.length) toast({ title: "Some dishes aren't available", description: `${missing.join(", ")} can't be ordered right now.` });
+  };
+  const changeOrder = async (o: SeatOrder) => {
+    try {
+      await seat.cancelOrder(o.id);
+      toCart(o, true);
+      setOrderNote(o.items?.note || "");
+      setShowBill(false);
+      setShowOrderStatusDialog(false);
+      setShowCartDialog(true);
+      toast({ title: "Order taken back", description: "Change it in your cart and send it again." });
+    } catch (e) {
+      toast({ title: "Can't change this order", description: errorCopy(e), variant: "destructive" });
     }
   };
 
@@ -570,9 +470,14 @@ const CustomerMenu = () => {
       toast({ title: "Too many submissions", description: "Please wait", variant: "destructive" });
       return;
     }
-    await supabase.from("feedback").insert([{ order_id: currentOrder.id, restaurant_id: restaurantId, rating, comment: sanitizeInput(comment.trim()) || null }]);
-    // Mark feedback as submitted for this order but DON'T clear orders - they persist for 90 mins
+    if (!seat.api?.demo) {
+      // The id is made here because guests can't read feedback back; a 1-2 star rating pings the owner's phone
+      const id = crypto.randomUUID();
+      const { error } = await supabase.from("feedback").insert([{ id, order_id: currentOrder.id, restaurant_id: restaurantId, rating, comment: sanitizeInput(comment.trim()) || null }]);
+      if (!error && rating <= 2) notifyStaff("feedback", id);
+    }
     localStorage.setItem(`feedback_submitted_${currentOrder.id}`, 'true');
+    setReviewed(true);
     // Every rating (not just good ones) gets the Google ask - filtering by rating is "review gating", which Google bans
     if (googleReviewUrl) {
       if (comment.trim()) {
@@ -581,7 +486,7 @@ const CustomerMenu = () => {
       setReviewStep("google");
       return;
     }
-    toast({ title: "Thank you!", description: "Your feedback helps us improve!", duration: 4000 });
+    toast({ title: servedBy ? `Thank you, from ${servedBy}` : "Thank you", description: "Your feedback went straight to the team.", duration: 4000 });
     setShowFeedback(false);
     setRating(0);
     setComment("");
@@ -599,6 +504,8 @@ const CustomerMenu = () => {
     setCommentCopied(false);
     // Orders remain visible in history for 90 mins
   };
+
+  const servedBy = seat.state?.served_by || null;
 
   // Memoized data - filter out unavailable items
   const availableMenuItems = useMemo(
@@ -735,6 +642,19 @@ const CustomerMenu = () => {
   }
 
   const restaurantName = restaurant?.name || "Menu";
+  if (needsPin && !seat.seat && !browsing) {
+    return (
+      <TableGate
+        restaurantName={restaurantName}
+        logoUrl={restaurant?.logo_url}
+        locationLabel={locationLabel}
+        tableFromQR={tableFromQR}
+        demoPin={seat.api?.demo ? DEMO_PIN : undefined}
+        onJoin={(table, pin) => seat.join(table, pin)}
+        onBrowse={() => setBrowsing(true)}
+      />
+    );
+  }
   const social = (restaurant?.social_links || {}) as Record<string, string | undefined>;
   const socialLinks = [
     { key: "instagram", Icon: Instagram, label: "Instagram" },
@@ -771,7 +691,7 @@ const CustomerMenu = () => {
   const moreMenu = (tone: "dark" | "light") => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button aria-label="More options" className={tone === "dark" ? GLASS_ACCENT : GHOST}>
+        <button aria-label="More options" className={tone === "dark" ? GLASS : GHOST}>
           <MoreVertical className="h-[18px] w-[18px]" strokeWidth={2} />
         </button>
       </DropdownMenuTrigger>
@@ -780,8 +700,8 @@ const CustomerMenu = () => {
           {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}{isDarkMode ? "Light mode" : "Dark mode"}
         </DropdownMenuItem>
         {activeOrders.length > 0 && (
-          <DropdownMenuItem onClick={() => setShowOrderHistoryDialog(true)} className="rounded-xl gap-2.5 py-2.5">
-            <Receipt className="h-4 w-4" />Your orders & bill
+          <DropdownMenuItem onClick={() => setShowBill(true)} className="rounded-xl gap-2.5 py-2.5">
+            <Receipt className="h-4 w-4" />Bill & payment
           </DropdownMenuItem>
         )}
         {googleReviewUrl && (
@@ -793,50 +713,88 @@ const CustomerMenu = () => {
     </DropdownMenu>
   );
 
-  // Items + total + table + place order. Shared by the phone cart sheet and the desktop order panel.
+  // Cart items list (reusable for modal and desktop sidebar)
+  const cartItemsList = (
+    <div className="divide-y divide-menu-line/80">
+      {cart.map((item) => {
+        const cartKey = lineKey(item);
+        const itemPrice = item.displayPrice ?? item.price;
+        const extras = [item.selectedSize, ...(item.addons || []), item.note].filter(Boolean).join(" · ");
+        return (
+          <motion.div key={cartKey} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-3 flex items-center gap-3">
+            {item.image_url && (
+              <img
+                src={sizedImage(item.image_url, 144)}
+                alt=""
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
+                onError={(e) => { e.currentTarget.src = "/placeholder.svg"; }}
+                className="h-12 w-12 rounded-xl object-cover flex-shrink-0 bg-menu-tint"
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="font-display text-[15px] leading-snug truncate">{item.name}</p>
+              <p className="text-xs text-menu-muted mt-0.5 truncate">{extras && <span>{extras} · </span>}{formatINR(itemPrice)}</p>
+            </div>
+            <QtyPill qty={item.quantity || 1} onMinus={() => updateLine(cartKey, -1)} onPlus={() => updateLine(cartKey, 1)} small />
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+
+  const tableLocked = !!tableFromQR || (needsPin && !!seat.seat);
+  // Cart checkout section (pinned total, table input, and place order button)
+  const cartCheckoutSection = (
+    <>
+      <div className="flex justify-between items-baseline">
+        <span className="text-sm text-menu-muted font-medium">Total</span>
+        <span className="font-display text-[26px] font-semibold tabular-nums text-menu-ink">{formatINR(totalPrice)}</span>
+      </div>
+      <div className="bg-menu-bg/80 p-3 rounded-2xl border border-menu-line/80">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="table-no-input" className="text-xs font-semibold uppercase tracking-wider text-menu-ink flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-menu-accent inline-block" />
+            {locationLabel} Number
+          </label>
+          {!tableNumber && <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">Table number required</span>}
+        </div>
+        <input
+          id="table-no-input"
+          value={tableNumber}
+          onChange={(e) => !tableLocked && setTableNumber(e.target.value)}
+          placeholder={`Enter ${locationLabelLower} number (e.g. 4)`}
+          readOnly={tableLocked}
+          className={`w-full h-11 px-4 rounded-xl border border-menu-line bg-menu-card text-[15px] font-medium text-menu-ink outline-none focus:border-menu-accent focus:ring-1 focus:ring-menu-accent transition-colors ${tableLocked ? "text-menu-muted bg-menu-tint/30" : ""}`}
+        />
+        {tableLocked && <p className="text-[11px] text-menu-muted mt-1.5">{tableFromQR ? "Detected from the QR code on your table" : "Your table for this visit"}</p>}
+      </div>
+      <div>
+        <label htmlFor="order-note" className="block text-xs font-medium text-menu-muted mb-1.5">Note for the kitchen</label>
+        <textarea id="order-note" rows={2} maxLength={200} value={orderNote} onChange={(e) => setOrderNote(e.target.value)}
+          placeholder="e.g. less spicy, no onion" className={`${inputClass} h-auto py-2.5 resize-none text-[14px]`} />
+      </div>
+      <PrimaryButton onClick={placeOrder} disabled={!tableNumber || cart.length === 0 || isPlacingOrder} className="w-full h-12 text-[15px] font-semibold">
+        {isPlacingOrder ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Sending to the kitchen</> : <>Place order · {formatINR(totalPrice)}</>}
+      </PrimaryButton>
+    </>
+  );
+
+  // Items + total + table + place order for desktop sidebar
   const orderSummary = (
     <>
       {cart.length === 0 ? (
         <p className="py-8 text-center text-sm text-menu-muted">Add a dish to start your order.</p>
-      ) : (<>
-        <div className="divide-y divide-menu-line">
-          {cart.map((item) => {
-            const cartKey = item.selectedSize ? `${item.id}_${item.selectedSize}` : item.id;
-            const itemPrice = item.displayPrice ?? item.price;
-            return (
-              <motion.div key={cartKey} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-3.5 flex items-center gap-3">
-                {item.image_url && <img src={sizedImage(item.image_url, 144)} alt="" className="h-12 w-12 rounded-xl object-cover flex-shrink-0" />}
-                <div className="flex-1 min-w-0">
-                  <p className="font-display text-[16px] leading-snug truncate">{item.name}</p>
-                  <p className="text-xs text-menu-muted mt-0.5">{item.selectedSize && <span>{item.selectedSize} · </span>}{formatINR(itemPrice)}</p>
-                </div>
-                <QtyPill qty={item.quantity || 1} onMinus={() => updateQuantity(item.id, -1, item.selectedSize)} onPlus={() => updateQuantity(item.id, 1, item.selectedSize)} small />
-              </motion.div>
-            );
-          })}
-        </div>
-      <div className="pt-4 mt-1 border-t border-menu-line space-y-4">
-        <div className="flex justify-between items-baseline">
-          <span className="text-sm text-menu-muted">Total</span>
-          <span className="font-display text-[26px] tabular-nums">{formatINR(totalPrice)}</span>
-        </div>
-        <div>
-          <label htmlFor="table-no" className="text-[11px] uppercase tracking-[0.16em] text-menu-muted">{locationLabel}</label>
-          <input
-            id="table-no"
-            value={tableNumber}
-            onChange={(e) => !tableFromQR && setTableNumber(e.target.value)}
-            placeholder={`Enter ${locationLabelLower} number`}
-            readOnly={!!tableFromQR}
-            className={`mt-2 w-full h-11 px-4 rounded-xl border border-menu-line bg-menu-card text-[15px] outline-none focus:border-menu-accent/60 transition-colors ${tableFromQR ? "text-menu-muted" : ""}`}
-          />
-          {tableFromQR && <p className="text-xs text-menu-muted mt-1.5">Detected from the QR code on your table</p>}
-        </div>
-        <PrimaryButton onClick={placeOrder} disabled={!tableNumber || cart.length === 0 || isPlacingOrder}>
-          {isPlacingOrder ? <><Loader2 className="w-4 h-4 animate-spin" /> Placing order</> : <>Place order · {formatINR(totalPrice)}</>}
-        </PrimaryButton>
-      </div>
-      </>)}
+      ) : (
+        <>
+          <div className="max-h-[42vh] overflow-y-auto pr-1">
+            {cartItemsList}
+          </div>
+          <div className="pt-4 mt-2 border-t border-menu-line space-y-4">
+            {cartCheckoutSection}
+          </div>
+        </>
+      )}
     </>
   );
 
@@ -872,12 +830,12 @@ const CustomerMenu = () => {
                   </>
                 ) : (
                   <>
-                    <span className="flex-1 min-w-0 flex items-center gap-2">
-                      <Leaf className="h-4 w-4 text-green-700 flex-shrink-0" strokeWidth={2} />
-                      <span className="font-display text-[19px] truncate">{restaurantName}</span>
+                    <span className="flex-1 min-w-0 flex items-center gap-2.5">
+                      {restaurant?.logo_url && <img src={restaurant.logo_url} alt="" className="h-7 w-7 rounded-full object-cover ring-1 ring-menu-line flex-shrink-0" />}
+                      <span className="font-display text-lg truncate">{restaurantName}</span>
                     </span>
                     <button onClick={openSearch} aria-label="Search" className={GHOST}><Search className="h-[18px] w-[18px]" strokeWidth={1.75} /></button>
-                    {waiterCallEnabled && <ServiceCallButton inline triggerClassName={GHOST} restaurantId={restaurantId || ""} tableNumber={tableNumber} />}
+                    {waiterCallEnabled && <WaiterCall seat={seat} tableNumber={tableNumber} locationLabel={locationLabel} triggerClassName={GHOST} onOpenBill={() => setShowBill(true)} />}
                     {moreMenu("light")}
                   </>
                 )}
@@ -898,31 +856,34 @@ const CustomerMenu = () => {
           srcSet={restaurant?.cover_url ? [800, 1400, 2200].map(w => `${sizedImage(restaurant.cover_url, w)} ${w}w`).join(", ") : undefined}
           sizes="100vw"
           alt=""
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
+          onError={(e) => { e.currentTarget.src = DEFAULT_COVER; e.currentTarget.removeAttribute("srcset"); }}
           className={`absolute inset-x-0 top-0 h-[115%] w-full object-cover ${restaurant?.cover_url ? "object-center" : "object-[center_75%]"}`}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/30 to-black/85" />
         <div className="relative max-w-6xl mx-auto px-4 lg:px-8">
           <div className="h-16 flex items-center justify-between">
             {canGoBack ? (
-              <button onClick={() => window.history.back()} aria-label="Back" className={GLASS_LIGHT}><ArrowLeft className="h-[18px] w-[18px]" strokeWidth={2} /></button>
+              <button onClick={() => window.history.back()} aria-label="Back" className={GLASS}><ArrowLeft className="h-[18px] w-[18px]" strokeWidth={2} /></button>
             ) : <span />}
             <div className="flex items-center gap-2">
-              <button onClick={openSearch} aria-label="Search" className={GLASS_ACCENT}><Search className="h-[18px] w-[18px]" strokeWidth={2} /></button>
-              {waiterCallEnabled && <ServiceCallButton inline triggerClassName={GLASS_ACCENT} restaurantId={restaurantId || ""} tableNumber={tableNumber} />}
+              <button onClick={openSearch} aria-label="Search" className={GLASS}><Search className="h-[18px] w-[18px]" strokeWidth={2} /></button>
+              {waiterCallEnabled && <WaiterCall seat={seat} tableNumber={tableNumber} locationLabel={locationLabel} triggerClassName={GLASS} onOpenBill={() => setShowBill(true)} />}
               {moreMenu("dark")}
             </div>
           </div>
           <div className="pt-20 sm:pt-24 lg:pt-36 pb-12">
-            <p data-hero className="text-[11px] font-medium uppercase tracking-[0.24em] text-white/60">
-              {tableNumber ? `${locationLabel} ${tableNumber}` : "Menu"}
-            </p>
-            <div data-hero className="mt-2.5 flex items-center gap-3">
-              {restaurant?.logo_url ? (
-                <img src={restaurant.logo_url} alt="" className="h-10 w-10 rounded-full object-cover ring-2 ring-white/20" />
-              ) : (
-                <Leaf className="h-7 w-7 text-green-500 flex-shrink-0" strokeWidth={2} fill="currentColor" fillOpacity={0.25} />
+            {tableNumber && (
+              <p data-hero className="inline-flex items-center h-7 px-3 rounded-full bg-white/15 ring-1 ring-white/20 backdrop-blur-md text-[13px] font-medium text-white">
+                {locationLabel} {tableNumber}
+              </p>
+            )}
+            <div data-hero className="mt-3 flex items-center gap-3">
+              {restaurant?.logo_url && (
+                <img src={restaurant.logo_url} alt="" className="h-11 w-11 rounded-full object-cover ring-2 ring-white/25 flex-shrink-0" />
               )}
-              <h1 className="font-display text-[38px] sm:text-[48px] lg:text-[64px] leading-[1.04] tracking-[-0.015em] text-[#FBF4EA]">{restaurantName}</h1>
+              <h1 className="font-display text-[40px] sm:text-[52px] lg:text-[68px] leading-[1.02] tracking-[-0.02em] text-[#FBF4EA] [text-wrap:balance]">{restaurantName}</h1>
             </div>
             {restaurant?.description && (
               <p data-hero className="mt-2 max-w-lg text-[15px] leading-relaxed text-white/75">{restaurant.description}</p>
@@ -939,6 +900,7 @@ const CustomerMenu = () => {
           className={`max-w-6xl mx-auto px-4 lg:px-8 pt-7 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10 ${activeOrders.length > 0 && cart.length > 0 ? "pb-48" : activeOrders.length > 0 || cart.length > 0 ? "pb-32" : "pb-10"} lg:pb-16`}
         >
           <main className="min-w-0">
+            {!searchQuery && <WaitPanel seat={seat} />}
             {searchQuery && (
               <section>
                 <p className="text-sm text-menu-muted mb-4">
@@ -959,7 +921,7 @@ const CustomerMenu = () => {
                       <SectionHeader
                         name={category.name}
                         count={items.length}
-                        onViewAll={selectedCategory ? undefined : () => selectCategory(category.id)}
+                        onViewAll={selectedCategory || items.length <= 4 ? undefined : () => selectCategory(category.id)}
                       />
                       <div className="grid gap-3 md:grid-cols-2">
                         {items.map((item) => <DishCard key={item.id} item={item} cartQty={getTotalItemQuantity(item.id)} {...cardProps} />)}
@@ -983,48 +945,114 @@ const CustomerMenu = () => {
               <div className="space-y-3" aria-label="Loading menu">
                 <div className="h-10 w-44 rounded-xl bg-menu-line/70 animate-pulse mb-4" />
                 {[0, 1, 2, 3].map(r => (
-                  <div key={r} className="flex h-[116px] rounded-[20px] overflow-hidden bg-menu-card border border-menu-line/70">
-                    <div className="w-[118px] bg-menu-line/60 animate-pulse" />
-                    <div className="flex-1 p-4 space-y-2.5">
-                      <div className="h-4 w-1/2 rounded bg-menu-line/70 animate-pulse" />
-                      <div className="h-4 w-14 rounded bg-menu-line/70 animate-pulse" />
+                  <div key={r} className="p-4 flex items-center justify-between gap-4 rounded-[22px] bg-menu-card border border-menu-line/70">
+                    <div className="flex-1 space-y-2.5">
+                      <div className="h-4 w-1/3 rounded bg-menu-line/70 animate-pulse" />
+                      <div className="h-4 w-16 rounded bg-menu-line/70 animate-pulse" />
                       <div className="h-3 w-3/4 rounded bg-menu-line/50 animate-pulse" />
                     </div>
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-menu-line/60 animate-pulse flex-shrink-0" />
                   </div>
                 ))}
               </div>
             )}
 
             {!isLoadingItems && (
-              <footer className="mt-16 pt-10 border-t border-menu-line text-center">
-                {googleReviewUrl && (
-                  <a
-                    href={googleReviewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-menu-card border border-menu-line text-sm font-medium hover:border-menu-accent/50 transition-colors"
-                  >
-                    <GoogleG className="h-4 w-4" />
-                    Enjoyed it? Review us on Google
-                  </a>
-                )}
-                {socialLinks.length > 0 && (
-                  <div className="mt-6 flex justify-center gap-5">
-                    {socialLinks.map(({ key, Icon, label }) => (
-                      <a key={key} href={social[key]} target="_blank" rel="noopener noreferrer" aria-label={label} className="text-menu-muted hover:text-menu-accent transition-colors">
-                        <Icon className="w-[18px] h-[18px]" strokeWidth={1.5} />
-                      </a>
-                    ))}
+              <footer className="mt-20 pt-10 pb-8 border-t border-menu-line/70 text-center">
+                {/* Google Review & Social Links */}
+                {(googleReviewUrl || socialLinks.length > 0) && (
+                  <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+                    {googleReviewUrl && (
+                      <motion.a
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        href={googleReviewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 h-9 px-4 rounded-full bg-menu-card border border-menu-line/80 text-xs font-medium text-menu-ink hover:border-menu-accent/50 shadow-sm transition-all"
+                      >
+                        <GoogleG className="h-3.5 w-3.5" />
+                        <span>Review us on Google</span>
+                        <ArrowUpRight className="h-3 w-3 text-menu-muted" />
+                      </motion.a>
+                    )}
+                    {socialLinks.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        {socialLinks.map(({ key, Icon, label }) => (
+                          <motion.a
+                            key={key}
+                            whileHover={{ scale: 1.12, y: -1 }}
+                            whileTap={{ scale: 0.92 }}
+                            href={social[key]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={label}
+                            className="w-9 h-9 rounded-full bg-menu-card border border-menu-line/80 flex items-center justify-center text-menu-muted hover:text-menu-accent hover:border-menu-accent/50 shadow-sm transition-colors"
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                          </motion.a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
-                <p className="mt-8 pb-4 text-[11px] uppercase tracking-[0.2em] text-menu-muted/70">Powered by QuickMenu</p>
+
+                {/* Minimal Developer & Powered by Pill */}
+                <div className="inline-flex items-center flex-wrap justify-center gap-x-2.5 gap-y-1.5 px-4 sm:px-5 py-2 rounded-full bg-menu-card/70 border border-menu-line/70 text-xs text-menu-muted mb-3 shadow-sm backdrop-blur-sm">
+                  <span className="flex items-center gap-1.5">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    <span>Crafted by</span>
+                    <a
+                      href="https://zenviqdigital.in"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-menu-ink hover:text-menu-accent transition-colors underline-offset-4 hover:underline"
+                    >
+                      Samir Sain
+                    </a>
+                  </span>
+                  <span className="text-menu-line">·</span>
+                  <span className="flex items-center gap-1.5">
+                    <span>Powered by</span>
+                    <motion.a
+                      whileHover={{ x: 1 }}
+                      href="https://zenviqdigital.in"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-menu-accent hover:underline underline-offset-4 inline-flex items-center gap-1.5"
+                    >
+                      <ZenviqLogo className="w-4 h-4 rounded-full shadow-sm" />
+                      <span>zenviqdigital.in</span>
+                      <ArrowUpRight className="w-3 h-3" />
+                    </motion.a>
+                  </span>
+                </div>
+
+                {/* Bottom line: Copyright & Back to Top */}
+                <div className="flex items-center justify-center gap-3 text-[11px] sm:text-xs text-menu-muted">
+                  <span>© {new Date().getFullYear()} QuickMenu</span>
+                  <span>·</span>
+                  <span>Made for {restaurant?.name || "ZenCafe"}</span>
+                  <span>·</span>
+                  <button
+                    type="button"
+                    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                    className="hover:text-menu-ink transition-colors inline-flex items-center gap-1"
+                  >
+                    <span>Top</span>
+                    <ArrowUp className="w-3 h-3" />
+                  </button>
+                </div>
               </footer>
             )}
           </main>
 
           {/* Desktop: order panel instead of the bottom cart bar */}
           <aside className="hidden lg:block">
-            <div className="sticky top-[132px] rounded-[24px] bg-menu-card border border-menu-line p-6 shadow-[0_24px_60px_-30px_rgba(43,29,20,0.35)]">
+            <div className="sticky top-[132px] rounded-[24px] bg-menu-card border border-menu-line p-6 shadow-[0_24px_60px_-30px_rgba(14,17,22,0.35)]">
               {activeOrders.length > 0 && (
                 <button onClick={() => setShowOrderStatusDialog(true)} className="mb-5 w-full flex items-center gap-3 rounded-2xl bg-menu-tint/60 px-4 py-3 text-left hover:bg-menu-tint transition-colors">
                   <StatusDot status={status} />
@@ -1033,9 +1061,20 @@ const CustomerMenu = () => {
                 </button>
               )}
               <div className="flex items-baseline justify-between">
-                <h3 className="font-display text-[26px] leading-none">Your order</h3>
+                <div className="flex items-center gap-2.5">
+                  <h3 className="font-display text-[26px] leading-none">Your order</h3>
+                  {cart.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearCart}
+                      className="text-xs font-semibold text-red-500 hover:text-red-600 transition-colors px-2 py-0.5 rounded hover:bg-red-500/10"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
                 {activeOrders.length > 0 && (
-                  <button onClick={() => setShowOrderHistoryDialog(true)} className="text-xs font-medium text-menu-accent hover:underline underline-offset-4">Orders & bill</button>
+                  <button onClick={() => setShowBill(true)} className="text-xs font-medium text-menu-accent hover:underline underline-offset-4">Bill & payment</button>
                 )}
               </div>
               {ordersEnabled ? <div className="mt-3">{orderSummary}</div> : <p className="mt-3 text-sm text-menu-muted">Please order with a member of staff.</p>}
@@ -1056,7 +1095,7 @@ const CustomerMenu = () => {
           >
             <button
               onClick={() => setShowCartDialog(true)}
-              className="w-full max-w-xl mx-auto flex items-center rounded-[26px] p-2 pl-5 bg-gradient-to-r from-menu-accent to-menu-accent-2 text-[#FBF4EA] shadow-[0_22px_44px_-18px_rgba(138,58,30,0.75)] active:scale-[0.99] transition-transform"
+              className="w-full max-w-xl mx-auto flex items-center rounded-[26px] p-2 pl-5 bg-gradient-to-r from-menu-accent to-menu-accent-2 dark:to-menu-accent text-[#FBF4EA] dark:text-menu-hero shadow-[0_22px_44px_-18px_rgba(138,58,30,0.75)] active:scale-[0.99] transition-transform"
             >
               <motion.span key={totalItems} initial={{ rotate: -12, scale: 0.9 }} animate={{ rotate: 0, scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
                 <ShoppingBag className="h-[22px] w-[22px]" strokeWidth={1.75} />
@@ -1065,7 +1104,7 @@ const CustomerMenu = () => {
                 <span className="block text-[17px] font-semibold leading-tight tabular-nums"><CountUp value={totalPrice} format={formatINR} duration={0.5} /></span>
                 <span className="block text-xs opacity-80">{totalItems} {totalItems === 1 ? "item" : "items"}</span>
               </span>
-              <span className="ml-auto mr-4 h-8 w-px bg-white/25" />
+              <span className="ml-auto mr-4 h-8 w-px bg-current opacity-25" />
               <span className="h-12 px-6 rounded-[20px] bg-[#FBF1E6] text-menu-accent-2 text-[15px] font-semibold flex items-center gap-2">
                 View order <ArrowRight className="h-4 w-4" strokeWidth={2} />
               </span>
@@ -1090,7 +1129,7 @@ const CustomerMenu = () => {
                 <span className="min-w-0">
                   <span className="block text-[14px] font-medium truncate">{STATUS_META[status].label}</span>
                   <span className="block text-xs text-menu-muted truncate">
-                    {activeOrders.length === 1 ? `Order #${activeOrders[0].order_number}` : `${activeOrders.length} orders`} · {itemCount} {itemCount === 1 ? "item" : "items"}
+                    {activeOrders.length === 1 ? `Order #${activeOrders[0].order_number.replace(/^ORD0*/, "")}` : `${activeOrders.length} orders`} · {itemCount} {itemCount === 1 ? "item" : "items"}
                   </span>
                 </span>
               </span>
@@ -1103,13 +1142,38 @@ const CustomerMenu = () => {
         )}
       </AnimatePresence>
 
-      {/* Cart sheet (phone) */}
+      {/* Cart sheet (phone / mobile) with fixed header, scrollable items and pinned checkout */}
       <Dialog open={showCartDialog} onOpenChange={setShowCartDialog}>
-        <DialogContent aria-describedby={undefined} className={`${SHEET} [&>button]:hidden`}>
-          <SheetHeader title="Your order" onClose={() => setShowCartDialog(false)} />
-          <ScrollArea className="max-h-[70vh]">
-            <div className="px-6 pb-6">{orderSummary}</div>
-          </ScrollArea>
+        <DialogContent aria-describedby={undefined} className="max-w-md w-[95vw] sm:w-full max-h-[88dvh] flex flex-col p-0 gap-0 rounded-[24px] sm:rounded-[28px] overflow-hidden border border-menu-line bg-menu-bg text-menu-ink shadow-2xl z-[200] [&>button]:hidden">
+          <SheetHeader
+            title="Your order"
+            onClose={() => setShowCartDialog(false)}
+            action={cart.length > 0 ? (
+              <button
+                type="button"
+                onClick={clearCart}
+                className="text-xs font-semibold text-red-500 hover:text-red-600 transition-colors px-2 py-0.5 rounded hover:bg-red-500/10"
+              >
+                Clear all
+              </button>
+            ) : null}
+          />
+          {cart.length === 0 ? (
+            <div className="py-16 text-center text-sm text-menu-muted px-6">
+              <ShoppingBag className="w-10 h-10 mx-auto mb-3 opacity-30 text-menu-muted" />
+              <p>Your order is empty.</p>
+              <p className="text-xs mt-1">Add some dishes from the menu to get started.</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex-1 min-h-0 overflow-y-auto px-6 py-2">
+                {cartItemsList}
+              </div>
+              <div className="shrink-0 px-6 pt-3 pb-6 bg-menu-card/95 backdrop-blur-md border-t border-menu-line space-y-3.5">
+                {cartCheckoutSection}
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -1120,7 +1184,7 @@ const CustomerMenu = () => {
           <div className="px-6 pt-7 pb-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-menu-muted">{locationLabel} {activeOrders[0]?.table_number}</p>
+                <p className="text-sm text-menu-muted">{locationLabel} {activeOrders[0]?.table_number}</p>
                 <h2 className="mt-2 font-display text-[30px] leading-tight">{STATUS_META[status].title}</h2>
               </div>
               <CloseButton onClick={() => setShowOrderStatusDialog(false)} />
@@ -1131,12 +1195,14 @@ const CustomerMenu = () => {
           </div>
           <ScrollArea className="max-h-[36vh] border-t border-menu-line">
             <div className="px-6 divide-y divide-menu-line">
-              {activeOrders.map((order) => <OrderBlock key={order.id} order={order} formatINR={formatINR} />)}
+              {activeOrders.map((order) => <OrderBlock key={order.id} order={order} formatINR={formatINR} onChange={changeOrder} />)}
             </div>
           </ScrollArea>
           <div className="px-6 pt-4 pb-6 border-t border-menu-line space-y-3">
-            {upiId && billTotal > 0 && allSettled && (
-              <UpiPayCard upiId={upiId} payee={restaurantName} amount={billTotal} note={`${locationLabel} ${tableNumber}`} />
+            {billTotal > 0 && (
+              allSettled
+                ? <PrimaryButton onClick={() => { setShowOrderStatusDialog(false); setShowBill(true); }}><Receipt className="h-4 w-4" /> Pay the bill · {formatINR(seat.state?.bill.due ?? billTotal)}</PrimaryButton>
+                : <SecondaryButton onClick={() => { setShowOrderStatusDialog(false); setShowBill(true); }}><Receipt className="h-4 w-4" /> View bill · {formatINR(billTotal)}</SecondaryButton>
             )}
             <SecondaryButton onClick={() => setShowOrderStatusDialog(false)}>Close</SecondaryButton>
           </div>
@@ -1167,10 +1233,11 @@ const CustomerMenu = () => {
             <div className="px-6 pt-9 pb-6 text-center">
               <div className="flex justify-center gap-1">
                 {[1, 2, 3, 4, 5].map(i => (
-                  <Star key={i} className={`h-5 w-5 ${i <= rating ? "text-amber-500 fill-amber-500" : "text-menu-line"}`} strokeWidth={1.5} />
+                  <Star key={i} className={`h-5 w-5 ${i <= rating ? "text-menu-accent fill-menu-accent" : "text-menu-line"}`} strokeWidth={1.5} />
                 ))}
               </div>
               <h2 className="mt-5 font-display text-[30px] leading-tight">Thank you</h2>
+              {servedBy && <p className="mt-1 text-sm text-menu-muted">From {servedBy} and the team</p>}
               <p className="mt-3 text-[15px] leading-relaxed text-menu-ink/80">
                 Would you share this on Google? It takes a moment and helps others find {restaurantName}.
               </p>
@@ -1207,66 +1274,48 @@ const CustomerMenu = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Order history + bill */}
-      <Dialog open={showOrderHistoryDialog} onOpenChange={setShowOrderHistoryDialog}>
-        <DialogContent aria-describedby={undefined} className={`${SHEET} [&>button]:hidden`}>
-          <SheetHeader title="Your orders" onClose={() => setShowOrderHistoryDialog(false)} />
-          <div className="px-6 pb-5 grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-menu-muted">Total</p>
-              <p className="mt-1 font-display text-[28px] tabular-nums">{formatINR(billTotal)}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-menu-muted">Items</p>
-              <p className="mt-1 font-display text-[28px] tabular-nums">{itemCount}</p>
-            </div>
-            <p className="col-span-2 -mt-2 text-xs text-menu-muted">{locationLabel} {tableNumber} · session ends in about {remainingMinutes || 90} min</p>
-          </div>
-          <ScrollArea className="max-h-[42vh] border-t border-menu-line">
-            <div className="px-6 divide-y divide-menu-line">
-              {activeOrders.map((order) => <OrderBlock key={order.id} order={order} formatINR={formatINR} showStatus />)}
-            </div>
-          </ScrollArea>
-          {upiId && billTotal > 0 && (
-            <div className="px-6 pt-4 pb-6 border-t border-menu-line">
-              <UpiPayCard upiId={upiId} payee={restaurantName} amount={billTotal} note={`${locationLabel} ${tableNumber}`} />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <BillSheet
+        open={showBill}
+        onOpenChange={setShowBill}
+        seat={seat}
+        restaurantName={restaurantName}
+        upiId={upiId}
+        locationLabel={locationLabel}
+        reviewed={reviewed || activeOrders.some(o => !!localStorage.getItem(`feedback_submitted_${o.id}`))}
+        onReview={() => { feedbackDismissedRef.current = true; openFeedback(); }}
+        onOrderAgain={orderAgain}
+        onChangeOrder={changeOrder}
+      />
     </div>
   );
 };
 
 // ---------- Presentational pieces ----------
 
-const EASE = [0.22, 1, 0.36, 1] as const;
 // Shown until the owner uploads a cover photo in Settings. Served from our own origin so the CSP allows it.
 const DEFAULT_COVER = "/menu-cover.jpg";
-const SHEET = "max-w-md w-[94vw] p-0 gap-0 rounded-[28px] overflow-hidden border border-menu-line bg-menu-bg text-menu-ink shadow-[0_30px_80px_-20px_rgba(43,29,20,0.4)] z-[200]";
-const GLASS_LIGHT = "h-10 w-10 rounded-full bg-white/95 text-[#2B1D14] flex items-center justify-center shadow-sm active:scale-95 transition-transform";
-const GLASS_ACCENT = "relative h-10 w-10 rounded-full bg-menu-accent/55 backdrop-blur-md ring-1 ring-white/15 text-white flex items-center justify-center hover:bg-menu-accent/70 active:scale-95 transition";
+// One quiet glass style for every control over the cover photo; terracotta stays for the active pill and the order
+const GLASS = "relative h-10 w-10 rounded-full bg-black/30 backdrop-blur-md ring-1 ring-white/20 text-white flex items-center justify-center hover:bg-black/45 active:scale-95 transition";
 const GHOST = "relative h-9 w-9 rounded-full flex items-center justify-center text-menu-ink/80 hover:bg-menu-ink/5 transition-colors";
-const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-type OrderStatus = "pending" | "accepted" | "preparing" | "completed" | "rejected" | "cancelled";
+type OrderStatus = "pending" | "accepted" | "preparing" | "ready" | "completed" | "rejected" | "cancelled";
 const STATUS_META: Record<OrderStatus, { label: string; title: string; dot: string; step: number }> = {
   pending: { label: "Waiting for the kitchen to confirm", title: "Order sent", dot: "bg-amber-500", step: 0 },
-  accepted: { label: "Order confirmed", title: "Confirmed", dot: "bg-sky-500", step: 1 },
-  preparing: { label: "Being prepared", title: "In the kitchen", dot: "bg-orange-500", step: 2 },
-  completed: { label: "Ready. Enjoy your meal", title: "Enjoy your meal", dot: "bg-emerald-500", step: 3 },
+  accepted: { label: "Order confirmed", title: "Confirmed", dot: "bg-menu-accent-2", step: 1 },
+  preparing: { label: "Being prepared", title: "In the kitchen", dot: "bg-menu-accent", step: 2 },
+  ready: { label: "Ready. On its way to you", title: "Ready", dot: "bg-emerald-500", step: 3 },
+  completed: { label: "Served. Enjoy your meal", title: "Enjoy your meal", dot: "bg-emerald-500", step: 4 },
   rejected: { label: "Order not accepted", title: "Order not accepted", dot: "bg-red-500", step: -1 },
-  cancelled: { label: "Order cancelled", title: "Order cancelled", dot: "bg-red-500", step: -1 },
+  cancelled: { label: "Order taken back", title: "Order taken back", dot: "bg-menu-muted", step: -1 },
 };
-const STEPS = ["Sent", "Confirmed", "Preparing", "Ready"];
+const STEPS = ["Sent", "Confirmed", "Preparing", "Ready", "Served"];
 
-// Same priority the old status bar used: all ready > any problem > furthest-along active state
+// The furthest-along live order speaks for the table; orders taken back or declined only count when nothing else is live
 function overallStatus(orders: { status: string }[]): OrderStatus {
-  if (orders.length && orders.every(o => o.status === "completed")) return "completed";
-  if (orders.some(o => o.status === "rejected")) return "rejected";
-  if (orders.some(o => o.status === "cancelled")) return "cancelled";
-  if (orders.some(o => o.status === "preparing")) return "preparing";
-  if (orders.some(o => o.status === "accepted")) return "accepted";
+  const live = orders.filter(o => o.status !== "rejected" && o.status !== "cancelled");
+  if (!live.length) return orders.some(o => o.status === "rejected") ? "rejected" : "cancelled";
+  if (live.every(o => o.status === "completed")) return "completed";
+  for (const s of ["ready", "preparing", "accepted"] as const) if (live.some(o => o.status === s)) return s;
   return "pending";
 }
 
@@ -1309,6 +1358,8 @@ const CategoryPills = ({ tone, tabs, isSelected, onSelect, showVeg, vegOnly, onT
           Veg
         </button>
       )}
+      {/* The Veg switch is a filter, not a category: keep it visually apart */}
+      {showVeg && <span aria-hidden="true" className={`h-6 w-px flex-shrink-0 ${tone === "dark" ? "bg-white/25" : "bg-menu-ink/15"}`} />}
       {tabs.map(({ id, name }) => {
         const active = isSelected(id);
         return (
@@ -1316,13 +1367,14 @@ const CategoryPills = ({ tone, tabs, isSelected, onSelect, showVeg, vegOnly, onT
             key={id ?? "all"}
             whileTap={{ scale: 0.95 }}
             onClick={(e) => { onSelect(id); e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); }}
-            className={`relative h-10 px-5 rounded-full text-sm font-medium whitespace-nowrap flex-shrink-0 capitalize transition-colors duration-300 ${active ? "text-white" : idle}`}
+            aria-pressed={active}
+            className={`relative h-10 px-5 rounded-full text-sm font-medium whitespace-nowrap flex-shrink-0 capitalize transition-colors duration-300 ${active ? "text-[#FBF4EA] dark:text-menu-hero" : idle}`}
           >
             {active && (
               <motion.span
                 layoutId={`pill-${tone}`}
                 transition={{ type: "spring", stiffness: 420, damping: 36 }}
-                className="absolute inset-0 rounded-full bg-gradient-to-b from-menu-accent to-menu-accent-2 shadow-[0_8px_20px_-8px_rgba(176,82,44,0.8)]"
+                className="absolute inset-0 rounded-full bg-gradient-to-b from-menu-accent to-menu-accent-2 dark:to-menu-accent shadow-[0_8px_20px_-8px_rgba(176,82,44,0.8)]"
               />
             )}
             <span className="relative">{name}</span>
@@ -1353,27 +1405,42 @@ const SectionHeader = ({ name, count, onViewAll }: { name: string; count: number
 
 // "+" circle that morphs into a − qty + pill once the dish is in the cart
 const QtyPill = ({ qty, onMinus, onPlus, small = false }: { qty: number; onMinus?: () => void; onPlus: () => void; small?: boolean }) => {
-  const h = small ? "h-9" : "h-11";
+  const h = small ? "h-8" : "h-8 sm:h-9";
   return (
     <motion.div
       layout
       transition={{ type: "spring", stiffness: 520, damping: 38 }}
-      style={{ borderRadius: 999 }}
-      className={`${h} flex items-center overflow-hidden flex-shrink-0 ${qty > 0 ? "bg-menu-tint/70" : "bg-menu-tint"}`}
+      className={`${h} flex items-center overflow-hidden flex-shrink-0 rounded-full ${
+        qty > 0
+          ? "bg-menu-accent text-white shadow-md ring-1 ring-menu-accent"
+          : "bg-menu-card border border-menu-line text-menu-accent shadow-sm hover:border-menu-accent/50"
+      }`}
     >
       <AnimatePresence mode="popLayout" initial={false}>
         {qty > 0 ? (
-          <motion.div key="qty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex items-center pl-1 pr-1">
-            <button onClick={onMinus} aria-label="Decrease quantity" className={`${small ? "w-8" : "w-9"} ${h} flex items-center justify-center text-menu-ink/80 hover:text-menu-ink`}>
-              <Minus className="h-4 w-4" strokeWidth={2} />
+          <motion.div
+            key="qty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex items-center px-1"
+          >
+            <button
+              type="button"
+              onClick={onMinus}
+              aria-label="Decrease quantity"
+              className={`${small ? "w-7" : "w-8"} ${h} flex items-center justify-center text-white/90 hover:text-white active:scale-90 transition-transform`}
+            >
+              <Minus className="h-3.5 w-3.5" strokeWidth={2.5} />
             </button>
-            <span className={`relative w-5 ${h} overflow-hidden text-[15px] font-semibold tabular-nums`}>
+            <span className={`relative ${small ? "w-4" : "w-5"} ${h} overflow-hidden text-xs sm:text-sm font-bold tabular-nums text-center flex items-center justify-center`}>
               <AnimatePresence initial={false} mode="popLayout">
                 <motion.span
                   key={qty}
-                  initial={{ y: 14, opacity: 0 }}
+                  initial={{ y: 12, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: -14, opacity: 0 }}
+                  exit={{ y: -12, opacity: 0 }}
                   transition={{ type: "spring", stiffness: 600, damping: 32 }}
                   className="absolute inset-0 flex items-center justify-center"
                 >
@@ -1381,23 +1448,35 @@ const QtyPill = ({ qty, onMinus, onPlus, small = false }: { qty: number; onMinus
                 </motion.span>
               </AnimatePresence>
             </span>
-            <button onClick={onPlus} aria-label="Increase quantity" className={`ml-1 ${small ? "h-7 w-7" : "h-9 w-9"} rounded-full bg-menu-accent text-white flex items-center justify-center active:scale-90 transition-transform`}>
-              <Plus className="h-4 w-4" strokeWidth={2.25} />
+            <button
+              type="button"
+              onClick={onPlus}
+              aria-label="Increase quantity"
+              className={`${small ? "w-7" : "w-8"} ${h} flex items-center justify-center text-white/90 hover:text-white active:scale-90 transition-transform`}
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             </button>
           </motion.div>
         ) : (
           <motion.button
             key="add"
-            initial={{ opacity: 0, scale: 0.6 }}
+            initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.6 }}
+            exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.18 }}
-            whileTap={{ scale: 0.85 }}
+            whileTap={{ scale: 0.88 }}
             onClick={onPlus}
             aria-label="Add to order"
-            className={`${small ? "w-9" : "w-11"} ${h} flex items-center justify-center text-menu-accent`}
+            className={`${small ? "px-2.5 text-xs" : "px-3.5 text-xs font-bold uppercase tracking-wider"} ${h} flex items-center justify-center gap-1 text-menu-accent hover:text-menu-accent-2 transition-colors`}
           >
-            <Plus className="h-5 w-5" strokeWidth={2} />
+            {small ? (
+              <Plus className="h-4 w-4" strokeWidth={2.5} />
+            ) : (
+              <>
+                <span>ADD</span>
+                <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+              </>
+            )}
           </motion.button>
         )}
       </AnimatePresence>
@@ -1408,9 +1487,24 @@ const QtyPill = ({ qty, onMinus, onPlus, small = false }: { qty: number; onMinus
 const DishCard = ({ item, cartQty, onAdd, onUpdate, formatINR, getCartQtyBySize, ordersEnabled = true }: any) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSizes, setShowSizes] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const hasLongDescription = item.description && item.description.length > 70;
   const hasSizeVariants = item.has_size_variants && item.size_variants?.length > 0;
+  const addons: { name: string; price: number }[] = Array.isArray(item.addons) ? item.addons : [];
+  const hasAddons = addons.length > 0;
+  // Add-on picker (in the dish drawer)
+  const [pickSize, setPickSize] = useState<string | null>(hasSizeVariants ? item.size_variants[0].name : null);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [note, setNote] = useState("");
+  const [pickQty, setPickQty] = useState(1);
+  const sizePrice = hasSizeVariants ? (item.size_variants.find((v: { name: string }) => v.name === pickSize)?.price ?? item.price) : item.price;
+  const unit = sizePrice + addons.filter(a => picked.includes(a.name)).reduce((s, a) => s + Number(a.price), 0);
+  const addPicked = () => {
+    onAdd(item, hasSizeVariants ? item.size_variants.find((v: { name: string }) => v.name === pickSize) : undefined,
+      { addons: addons.filter(a => picked.includes(a.name)), note, qty: pickQty });
+    setDetailOpen(false);
+    setPicked([]); setNote(""); setPickQty(1);
+  };
 
   const price = (() => {
     if (!hasSizeVariants) return formatINR(item.price);
@@ -1421,59 +1515,125 @@ const DishCard = ({ item, cartQty, onAdd, onUpdate, formatINR, getCartQtyBySize,
 
   const control = !item.is_available ? (
     <span className="text-xs text-menu-muted">Unavailable</span>
-  ) : !ordersEnabled ? null : hasSizeVariants ? (
+  ) : !ordersEnabled ? null : hasAddons ? (
     <motion.button
-      whileTap={{ scale: 0.9 }}
+      whileTap={{ scale: 0.92 }}
+      onClick={() => setDetailOpen(true)}
+      aria-label={`Add ${item.name}, choose extras`}
+      className="h-8 sm:h-9 px-3 rounded-full bg-menu-card border border-menu-line text-menu-accent shadow-sm hover:border-menu-accent/50 flex items-center justify-center gap-1 text-[11px] sm:text-xs font-bold uppercase tracking-wider transition"
+    >
+      {cartQty > 0 ? <span className="tabular-nums font-bold">{cartQty} in cart</span> : <><span>ADD</span><Plus className="h-3.5 w-3.5" strokeWidth={2.5} /></>}
+    </motion.button>
+  ) : hasSizeVariants ? (
+    <motion.button
+      whileTap={{ scale: 0.92 }}
       onClick={() => setShowSizes(s => !s)}
       aria-expanded={showSizes}
       aria-label="Choose size"
-      className="h-11 min-w-11 px-3 rounded-full bg-menu-tint text-menu-accent flex items-center justify-center gap-1 text-sm font-semibold"
+      className="h-8 sm:h-9 px-3 rounded-full bg-menu-card border border-menu-line text-menu-accent shadow-sm hover:border-menu-accent/50 flex items-center justify-center gap-1 text-[11px] sm:text-xs font-bold uppercase tracking-wider transition"
     >
-      {cartQty > 0 ? <span className="tabular-nums">{cartQty}</span> : <Plus className="h-5 w-5" strokeWidth={2} />}
+      {cartQty > 0 ? (
+        <span className="tabular-nums font-bold">{cartQty} in cart</span>
+      ) : (
+        <>
+          <span>ADD</span>
+          <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+        </>
+      )}
     </motion.button>
   ) : (
     <QtyPill qty={cartQty} onMinus={() => onUpdate(item.id, -1)} onPlus={() => onAdd(item)} />
   );
 
+  const sizeRows = hasSizeVariants && (
+    <div className="divide-y divide-menu-line/70">
+      {item.size_variants.map((size: { name: string; price: number }) => {
+        const qty = getCartQtyBySize ? getCartQtyBySize(item.id, size.name) : 0;
+        return (
+          <div key={size.name} className="px-4 h-12 sm:h-14 flex items-center justify-between text-[14px]">
+            <span>{size.name} <span className="ml-2 text-menu-accent font-semibold tabular-nums">{formatINR(size.price)}</span></span>
+            {item.is_available && ordersEnabled && <QtyPill qty={qty} onMinus={() => onUpdate(item.id, -1, size.name)} onPlus={() => onAdd(item, size)} small />}
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <article data-reveal className="rounded-[20px] bg-menu-card border border-menu-line/70 overflow-hidden shadow-[0_1px_2px_rgba(43,29,20,0.04),0_12px_28px_-20px_rgba(43,29,20,0.4)]">
-      <div className="flex min-h-[116px]">
-        <div className="relative w-[118px] sm:w-[132px] flex-shrink-0 overflow-hidden bg-menu-tint">
-          {item.image_url ? (
-            <DishPhoto
-              data-reveal-img
-              url={item.image_url}
-              widths={[160, 320, 480]}
-              sizes="132px"
-              alt={item.name}
-              onLoad={() => setLoaded(true)}
-              className={`transition-opacity duration-700 ${loaded ? "opacity-100" : "opacity-0"}`}
-            />
-          ) : (
-            <span className="absolute inset-0 flex items-center justify-center font-display text-4xl text-menu-accent/50">{item.name.charAt(0)}</span>
+    <article
+      data-reveal
+      className="rounded-[20px] bg-menu-card border border-menu-line/80 p-4 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow flex flex-col justify-between"
+    >
+      <div className="flex items-start justify-between gap-3.5 sm:gap-4">
+        {/* Left: Dish Information */}
+        <div className="flex-1 min-w-0 pr-1">
+          {(item.is_veg != null || item.is_bestseller || item.is_chef_special) && (
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <VegMark isVeg={item.is_veg} className="h-3.5 w-3.5" />
+              {item.is_chef_special && <ChefPickBadge />}
+              {item.is_bestseller && <BestsellerBadge />}
+            </div>
+          )}
+          <h3 className="font-display text-[17px] sm:text-[19px] font-normal leading-snug text-menu-ink">
+            <button
+              type="button"
+              onClick={() => setDetailOpen(true)}
+              className="text-left hover:text-menu-accent-2 transition-colors line-clamp-2"
+            >
+              {item.name}
+            </button>
+          </h3>
+          <p className="mt-1 flex items-baseline gap-2.5">
+            <span className="text-[15px] sm:text-[16px] font-semibold text-menu-accent tabular-nums">{price}</span>
+            {item.prep_minutes > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs text-menu-muted" title="Time in the kitchen">
+                <Clock className="h-3 w-3" strokeWidth={2} aria-hidden="true" />{item.prep_minutes} min
+              </span>
+            )}
+          </p>
+          {item.description && (
+            <p className={`mt-1.5 text-[13px] leading-relaxed text-menu-muted ${isExpanded ? "" : "line-clamp-2"}`}>
+              {item.description}
+            </p>
+          )}
+          {hasLongDescription && (
+            <button
+              type="button"
+              onClick={() => setIsExpanded(e => !e)}
+              className="mt-1 text-xs font-medium text-menu-accent hover:underline"
+            >
+              {isExpanded ? "Less" : "More"}
+            </button>
           )}
         </div>
-        <div className="flex-1 min-w-0 flex flex-col py-3.5 pl-4 pr-3">
-          <div className="flex-1 min-w-0">
-            {(item.is_veg != null || item.is_bestseller) && (
-              <div className="flex items-center gap-2 mb-1">
-                <VegMark isVeg={item.is_veg} className="h-3.5 w-3.5" />
-                {item.is_bestseller && <BestsellerBadge />}
-              </div>
-            )}
-            <h3 className="font-display text-[18px] leading-snug">{item.name}</h3>
-            {item.description && (
-              <p className={`mt-1 text-[13px] leading-relaxed text-menu-muted ${isExpanded ? "" : "line-clamp-2"}`}>{item.description}</p>
-            )}
-            {hasLongDescription && (
-              <button onClick={() => setIsExpanded(e => !e)} className="mt-0.5 text-xs font-medium text-menu-accent">{isExpanded ? "Less" : "More"}</button>
-            )}
+
+        {/* Right: Square Dish Photo & Order Control */}
+        {item.image_url ? (
+          <div className="relative flex flex-col items-center flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setDetailOpen(true)}
+              aria-label={`View ${item.name}`}
+              className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-menu-tint ring-1 ring-menu-line/80 shadow-[0_2px_8px_rgba(0,0,0,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-menu-accent group"
+            >
+              <DishPhoto
+                data-reveal-img
+                url={item.image_url}
+                widths={[320, 480, 640]}
+                sizes="(min-width: 640px) 112px, 96px"
+                alt={item.name}
+                className="group-hover:scale-105 transition-transform duration-300"
+              />
+            </button>
+            <div className="-mt-3.5 relative z-10">
+              {control}
+            </div>
           </div>
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <p className="text-[15px] font-semibold text-menu-accent tabular-nums">{price}</p>
+        ) : (
+          <div className="self-end flex-shrink-0 mt-auto pt-2">
             {control}
           </div>
-        </div>
+        )}
       </div>
 
       <AnimatePresence initial={false}>
@@ -1483,28 +1643,103 @@ const DishCard = ({ item, cartQty, onAdd, onUpdate, formatINR, getCartQtyBySize,
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.35, ease: EASE }}
-            className="overflow-hidden border-t border-menu-line/70"
+            className="mt-3 overflow-hidden border-t border-menu-line/70 pt-2"
           >
-            <div className="divide-y divide-menu-line/70">
-              {item.size_variants.map((size: { name: string; price: number }) => {
-                const qty = getCartQtyBySize ? getCartQtyBySize(item.id, size.name) : 0;
-                return (
-                  <div key={size.name} className="px-4 h-14 flex items-center justify-between text-[14px]">
-                    <span>{size.name} <span className="ml-2 text-menu-accent font-semibold tabular-nums">{formatINR(size.price)}</span></span>
-                    <QtyPill qty={qty} onMinus={() => onUpdate(item.id, -1, size.name)} onPlus={() => onAdd(item, size)} small />
-                  </div>
-                );
-              })}
-            </div>
+            {sizeRows}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Dish detail: whole photo with full aspect ratio */}
+      <Drawer open={detailOpen} onOpenChange={setDetailOpen}>
+        <DrawerContent className="max-h-[92dvh] bg-menu-bg border-menu-line text-menu-ink">
+          <div className="mx-auto w-full max-w-lg overflow-y-auto px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            {item.image_url && (
+              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-menu-tint shadow-md">
+                <img
+                  src={sizedImage(item.image_url, 800)}
+                  srcSet={[480, 800, 1200].map(w => `${sizedImage(item.image_url, w)} ${w}w`).join(", ")}
+                  sizes="(min-width: 640px) 512px, 100vw"
+                  alt={item.name}
+                  referrerPolicy="no-referrer"
+                  crossOrigin="anonymous"
+                  onError={(e) => { e.currentTarget.src = "/placeholder.svg"; e.currentTarget.removeAttribute("srcset"); }}
+                  className="w-full h-full object-cover object-center"
+                />
+              </div>
+            )}
+            {(item.is_veg != null || item.is_bestseller || item.is_chef_special || item.prep_minutes > 0) && (
+              <div className="mt-4 flex items-center gap-2">
+                <VegMark isVeg={item.is_veg} className="h-4 w-4" />
+                {item.is_chef_special && <ChefPickBadge />}
+                {item.is_bestseller && <BestsellerBadge />}
+                {item.prep_minutes > 0 && <span className="inline-flex items-center gap-1 text-xs text-menu-muted"><Clock className="h-3 w-3" strokeWidth={2} />{item.prep_minutes} min</span>}
+              </div>
+            )}
+            <DrawerTitle className="mt-2 font-display text-[26px] sm:text-[28px] font-semibold leading-tight tracking-tight text-menu-ink">{item.name}</DrawerTitle>
+            <DrawerDescription className={item.description ? "mt-2 text-[14px] sm:text-[15px] leading-relaxed text-menu-muted" : "sr-only"}>
+              {item.description || item.name}
+            </DrawerDescription>
+            {hasAddons && item.is_available && ordersEnabled ? (
+              <div className="mt-5 space-y-5">
+                {hasSizeVariants && (
+                  <fieldset>
+                    <legend className="text-sm font-medium mb-2">Size</legend>
+                    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Size">
+                      {item.size_variants.map((v: { name: string; price: number }) => (
+                        <button key={v.name} type="button" role="radio" aria-checked={pickSize === v.name} onClick={() => setPickSize(v.name)}
+                          className={`h-10 px-4 rounded-full text-[13px] font-medium transition-colors ${pickSize === v.name ? "bg-menu-ink text-menu-bg" : "bg-menu-ink/[0.05] text-menu-ink/80 hover:bg-menu-ink/[0.09]"}`}>
+                          {v.name} · {formatINR(v.price)}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
+                <fieldset>
+                  <legend className="text-sm font-medium mb-2">Add-ons</legend>
+                  <div className="rounded-2xl border border-menu-line bg-menu-card divide-y divide-menu-line">
+                    {addons.map(a => {
+                      const on = picked.includes(a.name);
+                      return (
+                        <label key={a.name} className="px-4 h-12 flex items-center justify-between gap-3 text-[14px] cursor-pointer">
+                          <span className="flex items-center gap-3">
+                            <input type="checkbox" checked={on} onChange={() => setPicked(p => (on ? p.filter(x => x !== a.name) : [...p, a.name]))}
+                              className="h-[18px] w-[18px] rounded accent-[rgb(var(--menu-accent))]" />
+                            {a.name}
+                          </span>
+                          <span className="tabular-nums text-menu-muted">+{formatINR(a.price)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+                <div>
+                  <label htmlFor={`note-${item.id}`} className="block text-sm font-medium mb-2">Note for the kitchen <span className="font-normal text-menu-muted">(optional)</span></label>
+                  <input id={`note-${item.id}`} value={note} maxLength={120} onChange={(e) => setNote(e.target.value)} placeholder="e.g. less spicy" className={inputClass} />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Stepper value={pickQty} min={1} max={20} onChange={setPickQty} label={`${item.name} quantity`} />
+                  <PrimaryButton onClick={addPicked} className="flex-1">Add · {formatINR(unit * pickQty)}</PrimaryButton>
+                </div>
+              </div>
+            ) : hasSizeVariants ? (
+              <div className="mt-5 rounded-2xl border border-menu-line bg-menu-card overflow-hidden">{sizeRows}</div>
+            ) : (
+              <div className="mt-5 flex items-center justify-between gap-3">
+                <p className="text-[22px] font-bold text-menu-accent tabular-nums">{price}</p>
+                {control}
+              </div>
+            )}
+            {hasSizeVariants && !item.is_available && <p className="mt-3 text-sm text-menu-muted">Unavailable right now</p>}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </article>
   );
 };
 
 const StatusDot = ({ status }: { status: OrderStatus }) => {
-  const live = STATUS_META[status].step >= 0 && STATUS_META[status].step < 3;
+  const live = STATUS_META[status].step >= 0 && STATUS_META[status].step < 4;
   return (
     <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
       {live && <span className={`absolute inline-flex h-full w-full rounded-full ${STATUS_META[status].dot} opacity-60 animate-ping`} />}
@@ -1527,7 +1762,7 @@ const OrderProgress = ({ step }: { step: number }) => {
       <div className="relative h-[3px] rounded-full bg-menu-line">
         <div ref={fill} className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-menu-accent to-menu-accent-2" style={{ width: 0 }} />
       </div>
-      <div className="mt-3 grid grid-cols-4 text-[11px]">
+      <div className="mt-3 grid grid-cols-5 text-[11px]">
         {STEPS.map((s, i) => (
           <span key={s} className={`${i === 0 ? "text-left" : i === STEPS.length - 1 ? "text-right" : "text-center"} ${i <= step ? "text-menu-ink font-medium" : "text-menu-muted"}`}>{s}</span>
         ))}
@@ -1536,14 +1771,15 @@ const OrderProgress = ({ step }: { step: number }) => {
   );
 };
 
-const OrderBlock = ({ order, formatINR, showStatus }: { order: any; formatINR: (n: number) => string; showStatus?: boolean }) => {
-  const items: { name: string; price: number; quantity?: number }[] = order.items?.items || [];
+const OrderBlock = ({ order, formatINR, showStatus, onChange }: { order: any; formatINR: (n: number) => string; showStatus?: boolean; onChange?: (o: any) => void }) => {
+  const items: { name: string; price: number; quantity?: number; selectedSize?: string | null; options?: string | null }[] = order.items?.items || [];
   const st = (order.status in STATUS_META ? order.status : "pending") as OrderStatus;
   const voided = st === "rejected" || st === "cancelled";
   return (
     <div className="py-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-menu-muted tabular-nums">#{order.order_number}</span>
+        <span className="text-xs text-menu-muted tabular-nums">#{String(order.order_number).replace(/^ORD0*/, "")}</span>
+        {onChange && st === "pending" && <button onClick={() => onChange(order)} className="text-xs font-medium text-menu-accent-2 dark:text-menu-accent hover:underline underline-offset-4">Change</button>}
         {showStatus && (
           <span className="flex items-center gap-1.5 text-xs text-menu-ink/80">
             <StatusDot status={st} />
@@ -1554,7 +1790,10 @@ const OrderBlock = ({ order, formatINR, showStatus }: { order: any; formatINR: (
       <div className={`space-y-1.5 ${voided ? "opacity-50 line-through" : ""}`}>
         {items.map((it, i) => (
           <div key={i} className="flex justify-between gap-4 text-[14px]">
-            <span className="truncate">{it.name}{(it.quantity || 1) > 1 && <span className="text-menu-muted"> × {it.quantity}</span>}</span>
+            <span className="min-w-0">
+              <span className="block truncate">{it.name}{(it.quantity || 1) > 1 && <span className="text-menu-muted"> × {it.quantity}</span>}</span>
+              {(it.selectedSize || it.options) && <span className="block text-xs text-menu-muted truncate">{[it.selectedSize, it.options].filter(Boolean).join(" · ")}</span>}
+            </span>
             <span className="tabular-nums text-menu-ink/80">{formatINR(it.price * (it.quantity || 1))}</span>
           </div>
         ))}
@@ -1562,34 +1801,6 @@ const OrderBlock = ({ order, formatINR, showStatus }: { order: any; formatINR: (
     </div>
   );
 };
-
-const CloseButton = ({ onClick }: { onClick: () => void }) => (
-  <button onClick={onClick} aria-label="Close" className="h-9 w-9 -mr-2 rounded-full flex items-center justify-center text-menu-muted hover:text-menu-ink hover:bg-menu-ink/5 transition-colors">
-    <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
-  </button>
-);
-
-const SheetHeader = ({ title, onClose }: { title: string; onClose: () => void }) => (
-  <DialogHeader className="px-6 pt-6 pb-2 flex-row items-center justify-between space-y-0">
-    <DialogTitle className="font-display text-[26px] font-normal">{title}</DialogTitle>
-    <CloseButton onClick={onClose} />
-  </DialogHeader>
-);
-
-const PrimaryButton = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-  <button
-    {...props}
-    className="w-full h-12 rounded-2xl bg-gradient-to-r from-menu-accent to-menu-accent-2 text-[#FBF4EA] text-[15px] font-semibold flex items-center justify-center gap-2 shadow-[0_14px_30px_-14px_rgba(138,58,30,0.7)] active:scale-[0.99] disabled:opacity-40 disabled:shadow-none disabled:active:scale-100 transition-[transform,opacity]"
-  >
-    {children}
-  </button>
-);
-
-const SecondaryButton = ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-  <button {...props} className="w-full h-11 rounded-2xl border border-menu-line text-[14px] font-medium hover:border-menu-accent/40 transition-colors">
-    {children}
-  </button>
-);
 
 const RATING_WORDS = ["", "Poor", "Fair", "Good", "Very good", "Excellent"];
 const StarRating = ({ value, onChange }: { value: number; onChange: (n: number) => void }) => {
@@ -1609,7 +1820,7 @@ const StarRating = ({ value, onChange }: { value: number; onChange: (n: number) 
             onClick={() => onChange(n)}
             className="p-1"
           >
-            <Star className={`h-9 w-9 transition-colors duration-200 ${n <= shown ? "text-amber-500 fill-amber-500" : "text-menu-line"}`} strokeWidth={1.25} />
+            <Star className={`h-9 w-9 transition-colors duration-200 ${n <= shown ? "text-menu-accent fill-menu-accent" : "text-menu-line"}`} strokeWidth={1.25} />
           </motion.button>
         ))}
       </div>
@@ -1618,28 +1829,17 @@ const StarRating = ({ value, onChange }: { value: number; onChange: (n: number) 
   );
 };
 
-// Check mark that draws itself (GSAP stroke animation)
-const DrawnCheck = () => {
-  const ref = useRef<SVGSVGElement>(null);
-  useLayoutEffect(() => {
-    if (!ref.current || prefersReducedMotion()) return;
-    const ctx = gsap.context(() => {
-      gsap.timeline()
-        .from("circle", { strokeDashoffset: 157, duration: 0.8, ease: "power2.inOut" })
-        .from("path", { strokeDashoffset: 40, duration: 0.45, ease: "power2.out" }, "-=0.2");
-    }, ref);
-    return () => ctx.revert();
-  }, []);
-  return (
-    <svg ref={ref} viewBox="0 0 56 56" className="w-16 h-16 mx-auto text-menu-accent" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <circle cx="28" cy="28" r="25" strokeDasharray="157" strokeDashoffset="0" />
-      <path d="M18 29l7 7 13-15" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="40" strokeDashoffset="0" />
-    </svg>
-  );
-};
-
 const GoogleG = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 48 48" className={className} aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+);
+
+const ZenviqLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg viewBox="0 0 512 512" fill="none" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect width="512" height="512" rx="225" fill="white" />
+    <path d="M130.005 109.662C162.062 108.209 204.898 109.62 237.91 109.487C268.172 109.213 298.436 109.132 328.699 109.241C342.949 109.28 357.258 109.549 371.877 109.579C388.51 107.551 400.365 121.407 399.995 135.865C399.594 151.544 377.536 176.622 368.355 190.078C356.2 207.894 344.189 225.597 331.411 242.635C326.559 248.081 322.223 255.133 316.799 261.329C319.19 249.628 320.139 221.629 314.943 210.3C310.78 201.226 300.155 197.618 290.755 194.466C296.325 185.33 311.989 166.759 320.408 159.843C311.457 160.623 296.709 160.547 287.348 160.674C268.222 160.946 249.093 161.123 229.965 161.207L169.962 161.278C160.465 161.284 130.124 162.379 123.974 158.936C104.115 147.814 105.841 115.678 130.005 109.662Z" fill="#122940" />
+    <path d="M264.035 217.284C273.931 216.628 285.503 216.738 295.55 216.641C296.039 231.81 298.258 323.504 293.564 330.533C288.18 334.381 276.95 333.836 270.049 333.799C259.367 325.64 254.231 312.774 250.788 300.998C218.859 322.145 175.582 391.35 141.914 400.072C117.082 402.554 97.705 378.469 116.575 360.688C138.947 339.606 159.71 317.073 179.566 294.086C188.176 284.118 197.134 276.233 205.379 265.529C195.433 260.613 160.624 244.249 172.049 227.835C175.114 223.432 183.054 222.375 188.77 222.213C213.934 221.501 238.946 219.316 264.035 217.284Z" fill="#26BCBC" />
+    <path d="M234.637 349.098C245.053 348.449 265.477 349.618 276.838 349.8C303.797 350.259 330.758 350.453 357.721 350.385C369.656 350.408 385.738 349.166 394.172 356.839C399.992 362.187 403.17 369.397 402.993 376.858C402.387 405.546 374.162 403.268 351.521 402.729C318.403 402.007 285.112 402.633 252.017 402.546C231.521 402.493 201.048 403.343 181.414 399.834C192.399 387.029 219.202 356.617 234.637 349.098Z" fill="#122940" />
+  </svg>
 );
 
 export default CustomerMenu;

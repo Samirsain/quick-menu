@@ -11,6 +11,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import CountUp from "@/components/CountUp";
+import type { ReactNode } from "react";
+import { STATUS, STATUS_TONE, asStatus } from "@/lib/orderFlow";
 
 interface StatsOverviewProps {
   restaurantId: string;
@@ -48,7 +50,7 @@ const StatsOverview = ({ restaurantId }: StatsOverviewProps) => {
     const channel = supabase
       .channel(`stats-views-${restaurantId}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_views", filter: `restaurant_id=eq.${restaurantId}` },
-        () => { toast({ title: "👁️ New Menu View!", description: "Someone is viewing your menu" }); fetchAllStats(); }
+        () => { toast({ title: "New menu view", description: "Someone is looking at your menu" }); fetchAllStats(); }
       ).subscribe();
     return () => { supabase.removeChannel(channel); };
   };
@@ -120,12 +122,12 @@ const StatsOverview = ({ restaurantId }: StatsOverviewProps) => {
       // Top items (from all recent orders)
       const itemCounts: Record<string, number> = {};
       allOrders.forEach(o => {
-        (o.items?.items || []).forEach((i: any) => {
+        ((o.items as { items?: { name: string; quantity?: number }[] } | null)?.items || []).forEach((i) => {
           itemCounts[i.name] = (itemCounts[i.name] || 0) + (i.quantity || 1);
         });
       });
       const todayCounts: Record<string, number> = {};
-      todayOrders.forEach(o => (o.items?.items || []).forEach((i: { name: string; quantity?: number }) => { todayCounts[i.name] = (todayCounts[i.name] || 0) + (i.quantity || 1); }));
+      todayOrders.forEach(o => ((o.items as { items?: { name: string; quantity?: number }[] } | null)?.items || []).forEach((i: { name: string; quantity?: number }) => { todayCounts[i.name] = (todayCounts[i.name] || 0) + (i.quantity || 1); }));
       setTodayTop(Object.entries(todayCounts).sort((a, b) => b[1] - a[1]).slice(0, 3));
 
       const sorted = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -193,134 +195,88 @@ const StatsOverview = ({ restaurantId }: StatsOverviewProps) => {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Dashboard Overview</h2>
-          <p className="text-sm text-muted-foreground mt-1">Track your restaurant's performance at a glance</p>
+          <h2 className="text-2xl font-semibold tracking-tight">Overview</h2>
+          <p className="text-sm text-muted-foreground mt-1">How today is going, at a glance</p>
         </div>
-        <Button onClick={shareReport} variant="outline" className="h-10 rounded-xl font-semibold border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40 active:scale-[0.97] transition-transform">
-          <Send className="h-4 w-4 mr-2" />Send today's report
+        <Button onClick={shareReport} variant="outline" className="gap-2">
+          <Send className="h-4 w-4" />Send today's report
         </Button>
       </div>
 
-      {/* Primary Stats — Today's Performance */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Today's Revenue */}
-        <Card className="border-0 shadow-md rounded-2xl p-5 bg-emerald-50 dark:bg-emerald-950/40 hover:shadow-lg transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 shadow-sm">
-              <IndianRupee className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+      {/* Primary stats: today's performance */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {([
+          { label: "Today's revenue", Icon: IndianRupee, value: <CountUp value={today.revenue} format={formatINR} />, change: revenueChange },
+          { label: "Today's orders", Icon: ShoppingBag, value: <CountUp value={today.orders} />, change: ordersChange },
+          { label: "Active orders", Icon: Clock, value: stats.activeOrders, live: stats.activeOrders > 0 },
+          { label: "Menu views", Icon: Eye, value: stats.totalViews },
+        ] as { label: string; Icon: typeof Clock; value: ReactNode; change?: number; live?: boolean }[]).map(({ label, Icon, value, change, live }) => (
+          <Card key={label} className="p-4 md:p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${live ? 'bg-accent text-primary' : 'bg-muted/70 text-foreground/70'}`}>
+                <Icon className="h-5 w-5" />
+              </div>
+              {!!change && (
+                <span className={`inline-flex items-center rounded-full px-2 h-6 text-xs font-semibold tabular-nums ${change > 0 ? 'bg-emerald-600/10 text-emerald-800 dark:text-emerald-300' : 'bg-destructive/10 text-destructive'}`}>
+                  {change > 0 ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
+                  {Math.abs(change)}%<span className="sr-only"> vs yesterday</span>
+                </span>
+              )}
+              {live && <span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden />}
             </div>
-            {revenueChange !== 0 && (
-              <Badge className={`rounded-full text-xs font-semibold ${revenueChange > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`} variant="outline">
-                {revenueChange > 0 ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
-                {Math.abs(revenueChange)}%
-              </Badge>
-            )}
-          </div>
-          <p className="text-2xl md:text-3xl font-extrabold tabular-nums"><CountUp value={today.revenue} format={formatINR} /></p>
-          <p className="text-xs text-muted-foreground mt-1 font-medium">Today's Revenue</p>
-        </Card>
+            <p className="text-2xl md:text-3xl font-semibold tabular-nums leading-tight">{value}</p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">{label}</p>
+          </Card>
+        ))}
+      </div>
 
-        {/* Today's Orders */}
-        <Card className="border-0 shadow-md rounded-2xl p-5 bg-blue-50 dark:bg-blue-950/40 hover:shadow-lg transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/50 shadow-sm">
-              <ShoppingBag className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            {ordersChange !== 0 && (
-              <Badge className={`rounded-full text-xs font-semibold ${ordersChange > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`} variant="outline">
-                {ordersChange > 0 ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
-                {Math.abs(ordersChange)}%
-              </Badge>
-            )}
-          </div>
-          <p className="text-2xl md:text-3xl font-extrabold tabular-nums"><CountUp value={today.orders} /></p>
-          <p className="text-xs text-muted-foreground mt-1 font-medium">Today's Orders</p>
-        </Card>
-
-        {/* Active Orders */}
-        <Card className="border-0 shadow-md rounded-2xl p-5 bg-orange-50 dark:bg-orange-950/40 hover:shadow-lg transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2.5 rounded-xl bg-orange-100 dark:bg-orange-900/50 shadow-sm">
-              <Clock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-            </div>
-            {stats.activeOrders > 0 && (
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
-              </span>
-            )}
-          </div>
-          <p className="text-2xl md:text-3xl font-extrabold">{stats.activeOrders}</p>
-          <p className="text-xs text-muted-foreground mt-1 font-medium">Active Orders</p>
-        </Card>
-
-        {/* Menu Views */}
-        <Card className="border-0 shadow-md rounded-2xl p-5 bg-violet-50 dark:bg-violet-950/40 hover:shadow-lg transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2.5 rounded-xl bg-violet-100 dark:bg-violet-900/50 shadow-sm">
-              <Eye className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-            </div>
-          </div>
-          <p className="text-2xl md:text-3xl font-extrabold">{stats.totalViews}</p>
-          <p className="text-xs text-muted-foreground mt-1 font-medium">Total Menu Views</p>
+      {/* Middle row: yesterday comparison and averages */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {([
+          ["Yesterday's revenue", formatINR(yesterday.revenue)],
+          ["Yesterday's orders", yesterday.orders],
+          ["Avg order value", formatINR(today.avgOrderValue)],
+        ] as [string, ReactNode][]).map(([label, value]) => (
+          <Card key={label} className="p-4">
+            <p className="text-xs text-muted-foreground font-medium mb-1">{label}</p>
+            <p className="text-lg font-semibold tabular-nums">{value}</p>
+          </Card>
+        ))}
+        <Card className="p-4">
+          <p className="text-xs text-muted-foreground font-medium mb-1">Avg rating</p>
+          {stats.avgRating > 0 ? (
+            <p className="text-lg font-semibold tabular-nums flex items-center gap-1">
+              <Star className="h-4 w-4 text-primary fill-primary" />{stats.avgRating}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground pt-1">No ratings yet</p>
+          )}
         </Card>
       </div>
 
-      {/* Middle Row — Yesterday Comparison + Avg Order Value */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-0 shadow-sm rounded-2xl p-4">
-          <p className="text-xs text-muted-foreground font-medium mb-1">Yesterday's Revenue</p>
-          <p className="text-lg font-bold">{formatINR(yesterday.revenue)}</p>
-        </Card>
-        <Card className="border-0 shadow-sm rounded-2xl p-4">
-          <p className="text-xs text-muted-foreground font-medium mb-1">Yesterday's Orders</p>
-          <p className="text-lg font-bold">{yesterday.orders}</p>
-        </Card>
-        <Card className="border-0 shadow-sm rounded-2xl p-4">
-          <p className="text-xs text-muted-foreground font-medium mb-1">Avg Order Value</p>
-          <p className="text-lg font-bold">{formatINR(today.avgOrderValue)}</p>
-        </Card>
-        <Card className="border-0 shadow-sm rounded-2xl p-4">
-          <p className="text-xs text-muted-foreground font-medium mb-1">Avg Rating</p>
-          <p className="text-lg font-bold flex items-center gap-1">
-            {stats.avgRating > 0 ? (
-              <><Star className="h-4 w-4 text-amber-500 fill-amber-500" />{stats.avgRating}</>
-            ) : "—"}
-          </p>
-        </Card>
-      </div>
-
-      {/* Bottom Row — Recent Orders + Top Items + Quick Stats */}
-      <div className="grid md:grid-cols-2 gap-4">
-        {/* Recent Orders */}
-        <Card className="border-0 shadow-md rounded-2xl overflow-hidden">
+      {/* Bottom row: recent orders and top items */}
+      <div className="grid md:grid-cols-2 gap-3">
+        <Card className="overflow-hidden">
           <div className="p-5 pb-3">
-            <h3 className="font-bold text-sm flex items-center gap-2">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
               <Package className="h-4 w-4 text-primary" />
-              Recent Orders Today
+              Recent orders today
             </h3>
           </div>
           <div className="px-5 pb-5">
             {recentOrders.length > 0 ? (
-              <div className="space-y-2">
-                {recentOrders.map((order, idx) => (
-                  <div key={order.id} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                        #{order.order_number?.slice(-3)}
-                      </div>
-                      <div>
+              <div className="space-y-1.5">
+                {recentOrders.map((order) => (
+                  <div key={order.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-muted/30">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="font-display text-base w-12 flex-shrink-0">#{order.order_number?.slice(-3)}</span>
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold">Table {order.table_number}</p>
-                        <p className="text-xs text-muted-foreground">{formatTime(order.created_at)}</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">{formatTime(order.created_at)}</p>
                       </div>
                     </div>
-                    <Badge className={`rounded-full text-xs ${
-                      order.status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                      order.status === 'preparing' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                      order.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                      'bg-zinc-100 text-zinc-700'
-                    }`} variant="outline">
-                      {order.status}
+                    <Badge className={`rounded-full text-xs ${STATUS_TONE[asStatus(order.status)]}`} variant="outline">
+                      {STATUS[asStatus(order.status)].badge}
                     </Badge>
                   </div>
                 ))}
@@ -331,33 +287,30 @@ const StatsOverview = ({ restaurantId }: StatsOverviewProps) => {
           </div>
         </Card>
 
-        {/* Top Selling Items */}
-        <Card className="border-0 shadow-md rounded-2xl overflow-hidden">
+        <Card className="overflow-hidden">
           <div className="p-5 pb-3">
-            <h3 className="font-bold text-sm flex items-center gap-2">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
-              Top Selling Items
+              Top selling items
             </h3>
           </div>
           <div className="px-5 pb-5">
             {topItems.length > 0 ? (
-              <div className="space-y-2">
+              <ol className="space-y-1.5">
                 {topItems.map((item, idx) => (
-                  <div key={item.name} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shadow-sm ${
-                        idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-zinc-400' : idx === 2 ? 'bg-orange-400' : 'bg-zinc-300'
-                      }`}>
+                  <li key={item.name} className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-muted/30">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold tabular-nums flex-shrink-0 ${idx === 0 ? 'bg-accent text-accent-foreground' : 'bg-muted/70 text-foreground/70'}`}>
                         {idx + 1}
-                      </div>
+                      </span>
                       <p className="text-sm font-semibold truncate">{item.name}</p>
                     </div>
-                    <Badge variant="secondary" className="rounded-full text-xs font-bold">
+                    <span className="text-xs font-semibold tabular-nums text-muted-foreground flex-shrink-0">
                       {item.count} sold
-                    </Badge>
-                  </div>
+                    </span>
+                  </li>
                 ))}
-              </div>
+              </ol>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-6">No sales data yet</p>
             )}
@@ -365,23 +318,19 @@ const StatsOverview = ({ restaurantId }: StatsOverviewProps) => {
         </Card>
       </div>
 
-      {/* Quick Stats Row */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="border-0 shadow-sm rounded-2xl p-4 text-center">
-          <Utensils className="h-5 w-5 text-primary mx-auto mb-2" />
-          <p className="text-xl font-extrabold">{stats.totalMenuItems}</p>
-          <p className="text-xs text-muted-foreground font-medium">Menu Items</p>
-        </Card>
-        <Card className="border-0 shadow-sm rounded-2xl p-4 text-center">
-          <Package className="h-5 w-5 text-primary mx-auto mb-2" />
-          <p className="text-xl font-extrabold">{stats.totalOrders}</p>
-          <p className="text-xs text-muted-foreground font-medium">Total Orders</p>
-        </Card>
-        <Card className="border-0 shadow-sm rounded-2xl p-4 text-center">
-          <MessageSquare className="h-5 w-5 text-primary mx-auto mb-2" />
-          <p className="text-xl font-extrabold">{stats.totalFeedback}</p>
-          <p className="text-xs text-muted-foreground font-medium">Feedback</p>
-        </Card>
+      {/* Totals */}
+      <div className="grid grid-cols-3 gap-3">
+        {([
+          ["Menu items", stats.totalMenuItems, Utensils],
+          ["Total orders", stats.totalOrders, Package],
+          ["Feedback", stats.totalFeedback, MessageSquare],
+        ] as [string, number, typeof Package][]).map(([label, value, Icon]) => (
+          <Card key={label} className="p-4 text-center">
+            <Icon className="h-5 w-5 text-primary mx-auto mb-2" />
+            <p className="text-xl font-semibold tabular-nums">{value}</p>
+            <p className="text-xs text-muted-foreground font-medium">{label}</p>
+          </Card>
+        ))}
       </div>
     </div>
   );

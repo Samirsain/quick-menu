@@ -63,6 +63,12 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
     const saved = localStorage.getItem('dashboard-theme');
     return (saved as 'light' | 'dark' | 'system') || 'light';
   });
+  // The header toggle can change the theme while this page is open
+  useEffect(() => {
+    const sync = () => setDashboardTheme((localStorage.getItem('dashboard-theme') as 'light' | 'dark' | 'system') || 'light');
+    window.addEventListener('dashboard-theme', sync);
+    return () => window.removeEventListener('dashboard-theme', sync);
+  }, []);
   
   // Business type state
   const [businessType, setBusinessType] = useState<'restaurant' | 'hotel'>('restaurant');
@@ -89,6 +95,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
       }
       
       localStorage.setItem('dashboard-theme', theme);
+      window.dispatchEvent(new Event('dashboard-theme')); // keeps the header toggle in sync
     };
     
     applyTheme(dashboardTheme);
@@ -147,7 +154,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
       setBusinessType(pendingBusinessType);
       
       toast({
-        title: "✅ Business Type Updated",
+        title: "Business type updated",
         description: `Changed to ${pendingBusinessType === 'hotel' ? 'Hotel' : 'Restaurant'} mode. Page will reload to apply changes.`,
         duration: 3000,
       });
@@ -213,7 +220,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
 
   const initializeNotifications = async () => {
     // Check if on production domain
-    const isProd = window.location.hostname === 'quickmenu-cpt.pages.dev'; // must match index.html and the OneSignal Site URL
+    const isProd = !!(window as unknown as { __QM_PUSH_ON__?: boolean }).__QM_PUSH_ON__; // set in index.html: the live site, not localhost
     setIsProductionDomain(isProd);
     
     // Check browser support
@@ -254,7 +261,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
     if (!isProductionDomain) {
       toast({
         title: "Not available here",
-        description: "Push notifications only work on quickmenu-cpt.pages.dev",
+        description: "Push notifications only work on your live site, not on localhost.",
         variant: "destructive",
       });
       return;
@@ -289,7 +296,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                 await OneSignal.User.PushSubscription.optIn();
                 setNotificationSubscribed(true);
                 toast({
-                  title: "🔔 Notifications Enabled!",
+                  title: "Notifications on",
                   description: "You'll receive alerts when new orders come in",
                 });
               } else {
@@ -337,8 +344,9 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
         return;
       }
 
-      if (file.size > 5 * 1024 * 1024) {
-        toast({ title: "File too large", description: "Max 5MB allowed", variant: "destructive" });
+      // Checked before compression, which shrinks phone photos to well under the 5MB upload cap
+      if (file.size > 25 * 1024 * 1024) {
+        toast({ title: "File too large", description: "Max 25MB allowed", variant: "destructive" });
         return;
       }
 
@@ -455,15 +463,15 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
   return (
     <div className="space-y-6">
       {/* Restaurant Info Card */}
-      <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-orange-500 to-red-500 text-white pb-4">
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-              <Store className="h-6 w-6" />
+            <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center">
+              <Store className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-xl">Restaurant Settings</CardTitle>
-              <CardDescription className="text-white/80 text-sm">
+              <CardTitle className="text-xl font-semibold tracking-normal">Restaurant settings</CardTitle>
+              <CardDescription className="text-sm">
                 Customize how customers see your restaurant
               </CardDescription>
             </div>
@@ -478,20 +486,20 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                   <img 
                     src={logoUrl} 
                     alt="Logo" 
-                    className="w-24 h-24 object-cover rounded-2xl border-2 border-zinc-200 dark:border-zinc-700"
+                    className="w-24 h-24 object-cover rounded-2xl border-2 border-border"
                   />
                   <Button
                     variant="destructive"
                     size="icon"
-                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full shadow-lg"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
                     onClick={handleRemoveLogo}
                   >
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
               ) : (
-                <div className="w-24 h-24 bg-zinc-100 dark:bg-zinc-800 rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-600 flex items-center justify-center">
-                  <ImageIcon className="h-8 w-8 text-zinc-400" />
+                <div className="w-24 h-24 bg-muted rounded-2xl border-2 border-dashed border-border flex items-center justify-center">
+                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
                 </div>
               )}
             </div>
@@ -503,7 +511,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                   accept="image/*"
                   onChange={handleImageUpload("logo")}
                   disabled={!!uploading}
-                  className="cursor-pointer"
+                  className="cursor-pointer h-auto py-2 file:mr-3 file:h-9 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:text-sm file:font-medium file:text-primary"
                 />
               </div>
               {uploading === "logo" && (
@@ -512,7 +520,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                     <Loader2 className="h-3 w-3 animate-spin" />
                     Uploading... {uploadProgress}%
                   </div>
-                  <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-1.5 mt-1">
+                  <div className="w-full bg-muted rounded-full h-1.5 mt-1">
                     <div 
                       className="bg-primary h-1.5 rounded-full transition-all"
                       style={{ width: `${uploadProgress}%` }}
@@ -520,14 +528,14 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                   </div>
                 </div>
               )}
-              <p className="text-xs text-zinc-500 mt-1">Square image, max 5MB</p>
+              <p className="text-xs text-muted-foreground mt-1">Square image, up to 25MB</p>
             </div>
           </div>
 
           {/* Cover photo: shown behind the restaurant name on the public menu */}
           <div className="space-y-2">
             <Label className="text-sm font-medium block">Cover Photo</Label>
-            <div className="relative aspect-[16/7] w-full overflow-hidden rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800">
+            <div className="relative aspect-[16/7] w-full overflow-hidden rounded-2xl border-2 border-border bg-muted">
               <img
                 src={coverUrl ? sizedImage(coverUrl, 1200) : "/menu-cover.jpg"}
                 alt="Cover"
@@ -540,7 +548,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                 <Button
                   variant="destructive"
                   size="icon"
-                  className="absolute top-2 right-2 h-7 w-7 rounded-full shadow-lg"
+                  className="absolute top-2 right-2 h-7 w-7 rounded-full"
                   onClick={() => { setCoverUrl(null); toast({ title: "Cover removed", description: "Save to confirm" }); }}
                 >
                   <X className="h-3.5 w-3.5" />
@@ -554,7 +562,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
               accept="image/*"
               onChange={handleImageUpload("cover")}
               disabled={!!uploading}
-              className="cursor-pointer"
+              className="cursor-pointer h-auto py-2 file:mr-3 file:h-9 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:text-sm file:font-medium file:text-primary"
             />
             {uploading === "cover" && (
               <div className="flex items-center gap-2 text-xs text-primary">
@@ -562,7 +570,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                 Uploading... {uploadProgress}%
               </div>
             )}
-            <p className="text-xs text-zinc-500">Landscape photo works best (at least 1600px wide), max 5MB. It fits every screen automatically.</p>
+            <p className="text-xs text-muted-foreground">Landscape photo works best (at least 1600px wide), up to 25MB. It fits every screen automatically.</p>
           </div>
 
           {/* Name Input */}
@@ -590,7 +598,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
               maxLength={500}
               className="resize-none rounded-xl"
             />
-            <p className="text-xs text-zinc-500 text-right">{description.length}/500</p>
+            <p className="text-xs text-muted-foreground text-right">{description.length}/500</p>
           </div>
 
           {/* UPI */}
@@ -607,7 +615,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
               maxLength={100}
               className="h-11 rounded-xl"
             />
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-muted-foreground">
               Customers get a "Pay with UPI" button with the bill amount filled in. Use a business/merchant UPI ID, since some apps limit payment links to personal IDs. Leave empty to hide.
             </p>
           </div>
@@ -616,7 +624,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
           <Button 
             onClick={handleSave} 
             disabled={saving} 
-            className="w-full h-11 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-medium"
+            className="w-full h-11 rounded-xl  font-medium"
           >
             {saving ? (
               <>
@@ -634,11 +642,11 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
       </Card>
 
       {/* Feature Settings Card */}
-      <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
+      <Card className="overflow-hidden">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-              <Settings className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+            <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center">
+              <Settings className="h-6 w-6 text-accent-foreground" />
             </div>
             <div className="flex-1">
               <CardTitle className="text-lg">Feature Settings</CardTitle>
@@ -651,14 +659,14 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
         <CardContent className="p-6 pt-0 space-y-4">
             <>
               {/* Online Ordering Toggle */}
-              <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/40">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-lg ${ordersEnabled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
-                    <ShoppingCart className={`h-5 w-5 ${ordersEnabled ? 'text-green-600 dark:text-green-400' : 'text-zinc-500'}`} />
+                  <div className={`p-2.5 rounded-lg ${ordersEnabled ? 'bg-accent' : 'bg-muted'}`}>
+                    <ShoppingCart className={`h-5 w-5 ${ordersEnabled ? 'text-primary' : 'text-muted-foreground'}`} />
                   </div>
                   <div>
                     <p className="font-medium">Online Ordering</p>
-                    <p className="text-sm text-zinc-500">
+                    <p className="text-sm text-muted-foreground">
                       {ordersEnabled ? 'Customers can place orders' : 'Ordering disabled'}
                     </p>
                   </div>
@@ -675,14 +683,14 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
               </div>
 
               {/* Waiter Call Toggle */}
-              <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/40">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-lg ${waiterCallEnabled ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
-                    <HandHelping className={`h-5 w-5 ${waiterCallEnabled ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500'}`} />
+                  <div className={`p-2.5 rounded-lg ${waiterCallEnabled ? 'bg-accent' : 'bg-muted'}`}>
+                    <HandHelping className={`h-5 w-5 ${waiterCallEnabled ? 'text-primary' : 'text-muted-foreground'}`} />
                   </div>
                   <div>
                     <p className="font-medium">Waiter Call</p>
-                    <p className="text-sm text-zinc-500">
+                    <p className="text-sm text-muted-foreground">
                       {waiterCallEnabled ? 'Customers can request assistance' : 'Waiter call disabled'}
                     </p>
                   </div>
@@ -698,26 +706,26 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                 )}
               </div>
 
-              <p className="text-xs text-zinc-500 text-center">
-                💡 Changes take effect immediately for new customers
+              <p className="text-xs text-muted-foreground text-center">
+                Changes take effect immediately for new customers
               </p>
             </>
         </CardContent>
       </Card>
 
       {/* Push Notifications Card */}
-      <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
+      <Card className="overflow-hidden">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
               notificationSubscribed 
-                ? 'bg-green-100 dark:bg-green-900/30' 
-                : 'bg-zinc-100 dark:bg-zinc-800'
+                ? 'bg-accent' 
+                : 'bg-muted'
             }`}>
               {notificationSubscribed ? (
-                <BellRing className="h-6 w-6 text-green-600 dark:text-green-400" />
+                <BellRing className="h-6 w-6 text-primary" />
               ) : (
-                <Bell className="h-6 w-6 text-zinc-500" />
+                <Bell className="h-6 w-6 text-muted-foreground" />
               )}
             </div>
             <div className="flex-1">
@@ -735,25 +743,25 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
             animate={{ opacity: 1, y: 0 }}
             className={`p-4 rounded-xl ${
               notificationSubscribed 
-                ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800' 
-                : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800'
+                ? 'bg-accent/50 border border-primary/20' 
+                : 'bg-muted/40 border border-border'
             }`}
           >
             <div className="flex items-center gap-3">
               {notificationSubscribed ? (
                 <>
-                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-green-800 dark:text-green-200">Push Notifications Active</p>
-                    <p className="text-sm text-green-600 dark:text-green-400">You'll receive order alerts on this device</p>
+                    <p className="font-medium text-foreground">Push Notifications Active</p>
+                    <p className="text-sm text-muted-foreground">You'll receive order alerts on this device</p>
                   </div>
                 </>
               ) : (
                 <>
-                  <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                  <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-amber-800 dark:text-amber-200">Push Notifications Off</p>
-                    <p className="text-sm text-amber-600 dark:text-amber-400">Enable to get instant order alerts</p>
+                    <p className="font-medium text-foreground">Push Notifications Off</p>
+                    <p className="text-sm text-muted-foreground">Enable to get instant order alerts</p>
                   </div>
                 </>
               )}
@@ -762,12 +770,12 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
 
           {/* Toggle Switch */}
           {isProductionDomain && notificationSupported && (
-            <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-muted/40">
               <div className="flex items-center gap-3">
-                <Bell className="h-5 w-5 text-zinc-500 flex-shrink-0" />
+                <Bell className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                 <div>
                   <p className="font-medium">Order Push Notifications</p>
-                  <p className="text-sm text-zinc-500">Browser push alerts for new orders</p>
+                  <p className="text-sm text-muted-foreground">Browser push alerts for new orders</p>
                 </div>
               </div>
               {notificationLoading ? (
@@ -787,7 +795,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
             <Button 
               onClick={() => handleNotificationToggle(true)}
               disabled={notificationLoading}
-              className="w-full h-11 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              className="w-full h-11 rounded-xl "
             >
               {notificationLoading ? (
                 <>
@@ -805,12 +813,11 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
 
           {/* Not on production domain warning */}
           {!isProductionDomain && (
-            <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+            <div className="p-4 rounded-xl bg-muted/40 border border-border">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Push notifications are only available on <strong>quickmenu-cpt.pages.dev</strong>. 
-                  You're currently on {window.location.hostname}.
+                <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-foreground/80">
+                  Push notifications work on your live site, not on {window.location.hostname}.
                 </p>
               </div>
             </div>
@@ -818,10 +825,10 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
 
           {/* Browser not supported warning */}
           {!notificationSupported && (
-            <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+            <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/25">
               <div className="flex items-start gap-3">
-                <BellOff className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-red-700 dark:text-red-300">
+                <BellOff className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-destructive">
                   Your browser doesn't support push notifications. Try Chrome, Firefox, or Edge.
                 </p>
               </div>
@@ -830,9 +837,9 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
 
           {/* How it works - Collapsible */}
           <details className="group">
-            <summary className="flex items-center justify-between cursor-pointer p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+            <summary className="flex items-center justify-between cursor-pointer p-4 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors">
               <span className="font-medium">How push notifications work</span>
-              <span className="text-zinc-400 group-open:rotate-180 transition-transform">▼</span>
+              <span className="text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="mt-3 space-y-3 pl-3">
               {[
@@ -841,33 +848,33 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                 { step: "3", text: "Tap notification to view order in dashboard" },
               ].map((item) => (
                 <div key={item.step} className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-orange-600">{item.step}</span>
+                  <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-semibold text-accent-foreground tabular-nums">{item.step}</span>
                   </div>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">{item.text}</p>
+                  <p className="text-sm text-muted-foreground">{item.text}</p>
                 </div>
               ))}
             </div>
           </details>
 
           {/* Note about in-app notifications */}
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center">
-            💡 In-app order notifications always work. Push notifications are for when you're not on the dashboard.
+          <p className="text-sm text-muted-foreground text-center">
+            In-app order notifications always work. Push notifications are for when you're not on the dashboard.
           </p>
         </CardContent>
       </Card>
 
       {/* Theme Settings Card */}
-      <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
+      <Card className="overflow-hidden">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center">
               {dashboardTheme === 'dark' ? (
-                <Moon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                <Moon className="h-6 w-6 text-primary" />
               ) : dashboardTheme === 'light' ? (
-                <Sun className="h-6 w-6 text-amber-500" />
+                <Sun className="h-6 w-6 text-primary" />
               ) : (
-                <Monitor className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                <Monitor className="h-6 w-6 text-primary" />
               )}
             </div>
             <div className="flex-1">
@@ -885,14 +892,14 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
               onClick={() => handleThemeChange('light')}
               className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                 dashboardTheme === 'light'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600'
+                  ? 'border-primary bg-accent/40'
+                  : 'border-border hover:border-primary/40'
               }`}
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                dashboardTheme === 'light' ? 'bg-amber-100' : 'bg-zinc-100 dark:bg-zinc-800'
+                dashboardTheme === 'light' ? 'bg-accent' : 'bg-muted'
               }`}>
-                <Sun className={`h-5 w-5 ${dashboardTheme === 'light' ? 'text-amber-500' : 'text-zinc-500'}`} />
+                <Sun className={`h-5 w-5 ${dashboardTheme === 'light' ? 'text-primary' : 'text-muted-foreground'}`} />
               </div>
               <span className={`text-sm font-medium ${dashboardTheme === 'light' ? 'text-primary' : ''}`}>Light</span>
             </button>
@@ -902,14 +909,14 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
               onClick={() => handleThemeChange('dark')}
               className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                 dashboardTheme === 'dark'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600'
+                  ? 'border-primary bg-accent/40'
+                  : 'border-border hover:border-primary/40'
               }`}
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                dashboardTheme === 'dark' ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-zinc-100 dark:bg-zinc-800'
+                dashboardTheme === 'dark' ? 'bg-accent' : 'bg-muted'
               }`}>
-                <Moon className={`h-5 w-5 ${dashboardTheme === 'dark' ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-500'}`} />
+                <Moon className={`h-5 w-5 ${dashboardTheme === 'dark' ? 'text-primary' : 'text-muted-foreground'}`} />
               </div>
               <span className={`text-sm font-medium ${dashboardTheme === 'dark' ? 'text-primary' : ''}`}>Dark</span>
             </button>
@@ -919,34 +926,34 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
               onClick={() => handleThemeChange('system')}
               className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                 dashboardTheme === 'system'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600'
+                  ? 'border-primary bg-accent/40'
+                  : 'border-border hover:border-primary/40'
               }`}
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                dashboardTheme === 'system' ? 'bg-purple-100 dark:bg-purple-900/50' : 'bg-zinc-100 dark:bg-zinc-800'
+                dashboardTheme === 'system' ? 'bg-accent' : 'bg-muted'
               }`}>
-                <Monitor className={`h-5 w-5 ${dashboardTheme === 'system' ? 'text-purple-600 dark:text-purple-400' : 'text-zinc-500'}`} />
+                <Monitor className={`h-5 w-5 ${dashboardTheme === 'system' ? 'text-primary' : 'text-muted-foreground'}`} />
               </div>
               <span className={`text-sm font-medium ${dashboardTheme === 'system' ? 'text-primary' : ''}`}>System</span>
             </button>
           </div>
 
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center">
-            💡 This setting only affects the dashboard. Customer menu has its own theme.
+          <p className="text-sm text-muted-foreground text-center">
+            This setting only affects the dashboard. Customer menu has its own theme.
           </p>
         </CardContent>
       </Card>
 
       {/* Business Type Card */}
-      <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
+      <Card className="overflow-hidden">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center">
               {businessType === 'hotel' ? (
-                <Hotel className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                <Hotel className="h-6 w-6 text-primary" />
               ) : (
-                <Building2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                <Building2 className="h-6 w-6 text-primary" />
               )}
             </div>
             <div className="flex-1">
@@ -965,18 +972,18 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
               disabled={businessTypeSaving}
               className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                 businessType === 'restaurant'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600'
+                  ? 'border-primary bg-accent/40'
+                  : 'border-border hover:border-primary/40'
               } ${businessTypeSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                businessType === 'restaurant' ? 'bg-orange-100 dark:bg-orange-900/50' : 'bg-zinc-100 dark:bg-zinc-800'
+                businessType === 'restaurant' ? 'bg-accent' : 'bg-muted'
               }`}>
-                <Building2 className={`h-5 w-5 ${businessType === 'restaurant' ? 'text-orange-600 dark:text-orange-400' : 'text-zinc-500'}`} />
+                <Building2 className={`h-5 w-5 ${businessType === 'restaurant' ? 'text-primary' : 'text-muted-foreground'}`} />
               </div>
               <div className="text-center">
                 <span className={`text-sm font-medium block ${businessType === 'restaurant' ? 'text-primary' : ''}`}>Restaurant</span>
-                <span className="text-xs text-zinc-500">Table Number</span>
+                <span className="text-xs text-muted-foreground">Table Number</span>
               </div>
             </button>
 
@@ -986,18 +993,18 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
               disabled={businessTypeSaving}
               className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                 businessType === 'hotel'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600'
+                  ? 'border-primary bg-accent/40'
+                  : 'border-border hover:border-primary/40'
               } ${businessTypeSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                businessType === 'hotel' ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-zinc-100 dark:bg-zinc-800'
+                businessType === 'hotel' ? 'bg-accent' : 'bg-muted'
               }`}>
-                <Hotel className={`h-5 w-5 ${businessType === 'hotel' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500'}`} />
+                <Hotel className={`h-5 w-5 ${businessType === 'hotel' ? 'text-primary' : 'text-muted-foreground'}`} />
               </div>
               <div className="text-center">
                 <span className={`text-sm font-medium block ${businessType === 'hotel' ? 'text-primary' : ''}`}>Hotel</span>
-                <span className="text-xs text-zinc-500">Room Number</span>
+                <span className="text-xs text-muted-foreground">Room Number</span>
               </div>
             </button>
           </div>
@@ -1009,8 +1016,8 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
             </div>
           )}
 
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center">
-            💡 Changes "Table Number" to "Room Number" throughout the app
+          <p className="text-sm text-muted-foreground text-center">
+            Changes "Table Number" to "Room Number" throughout the app
           </p>
         </CardContent>
       </Card>
@@ -1020,7 +1027,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-500" />
+              <AlertCircle className="h-5 w-5 text-primary" />
               Confirm Business Type Change
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4">
@@ -1029,7 +1036,7 @@ const RestaurantProfile = ({ restaurantId }: RestaurantProfileProps) => {
                 <strong>{businessType === 'restaurant' ? 'Restaurant' : 'Hotel'}</strong> to{" "}
                 <strong>{pendingBusinessType === 'restaurant' ? 'Restaurant' : 'Hotel'}</strong>.
               </p>
-              <p className="text-amber-600 dark:text-amber-400 font-medium">
+              <p className="text-accent-foreground font-medium">
                 This will change all "{businessType === 'restaurant' ? 'Table' : 'Room'}" labels to "{pendingBusinessType === 'restaurant' ? 'Table' : 'Room'}" throughout your dashboard and customer menu.
               </p>
               <div className="space-y-2">

@@ -6,6 +6,8 @@ import { ArrowLeft, BellRing, Leaf, Maximize, Minimize, Printer, StickyNote, Vol
 import { supabase } from "@/integrations/supabase/client";
 import { useBusinessType } from "@/hooks/useBusinessType";
 import { printKot } from "@/lib/printKot";
+import { useOnShift } from "@/hooks/useOnShift";
+import { staffApi } from "@/lib/staffApi";
 import { STATUS, asStatus, fmtTime, minutesSince, shortOrderNo, withStatus, type OrderPayload, type OrderStatus } from "@/lib/orderFlow";
 
 interface Order {
@@ -25,6 +27,8 @@ const TABS: { key: Tab; label: string; statuses: OrderStatus[] }[] = [
   { key: "preparing", label: "Preparing", statuses: ["accepted", "preparing"] },
   { key: "ready", label: "Ready", statuses: ["ready"] },
 ];
+// A ticket turns red after this long (spec: 15 minutes pending = visibly delayed)
+const LATE_MIN = 15;
 // Board order: what needs a decision first
 const PRIORITY: Record<string, number> = { pending: 0, ready: 1, accepted: 2, preparing: 3 };
 
@@ -60,6 +64,10 @@ const KitchenDisplay = () => {
   const audioRef = useRef<AudioContext | null>(null);
   const soundOnRef = useRef(false);
   const { locationLabel } = useBusinessType(restaurantId);
+  const { name: onShift } = useOnShift(restaurantId);
+  // This screen's station (Tandoor, Bar...), remembered per device; "" = every station
+  const [station, setStationState] = useState(() => { try { return localStorage.getItem("kds-station") || ""; } catch { return ""; } });
+  const setStation = (s: string) => { setStationState(s); try { localStorage.setItem("kds-station", s); } catch { /* private mode */ } };
 
   // Resolve the signed-in restaurant
   useEffect(() => {
@@ -80,7 +88,7 @@ const KitchenDisplay = () => {
       .eq("restaurant_id", restaurantId)
       .gte("created_at", startOfDay.toISOString())
       .order("created_at", { ascending: true })
-      .then(({ data }: { data: Order[] | null }) => setOrders(data || []));
+      .then(({ data }) => setOrders((data || []) as unknown as Order[]));
 
     const channel = supabase.channel(`kds-${restaurantId}-${Date.now()}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `restaurant_id=eq.${restaurantId}` }, (p: { new: Order }) => {
@@ -130,10 +138,14 @@ const KitchenDisplay = () => {
     const update = withStatus(order, status);
     setOrders(prev => prev.map(o => o.id === order.id ? { ...o, ...update, updated_at: new Date().toISOString() } : o));
     setFreshIds(prev => { const s = new Set(prev); s.delete(order.id); return s; });
-    await supabase.from("orders").update(update).eq("id", order.id);
-  }, []);
+    await supabase.from("orders").update(update as never).eq("id", order.id);
+    if (restaurantId) staffApi.log(restaurantId, onShift, "order_status", { table: order.table_number, status: STATUS[status].badge });
+  }, [restaurantId, onShift]);
 
-  const board = useMemo(() => orders.filter(o => (TABS[0].statuses as string[]).includes(o.status)), [orders]);
+  const live = useMemo(() => orders.filter(o => (TABS[0].statuses as string[]).includes(o.status)), [orders]);
+  const stations = useMemo(() => [...new Set(live.flatMap(o => (o.items?.items || []).map(l => l.station).filter(Boolean)))] as string[], [live]);
+  // A station screen only sees tickets with its dishes (dishes with no station show everywhere)
+  const board = useMemo(() => !station ? live : live.filter(o => (o.items?.items || []).some(l => !l.station || l.station === station)), [live, station]);
   const counts = useMemo(() => Object.fromEntries(TABS.map(t => [t.key, board.filter(o => (t.statuses as string[]).includes(o.status)).length])), [board]);
   const visible = useMemo(() => {
     const t = TABS.find(x => x.key === tab)!;
@@ -197,6 +209,16 @@ const KitchenDisplay = () => {
             );
           })}
         </nav>
+        {(stations.length > 0 || station) && (
+          <nav aria-label="Station" className="flex gap-2 px-4 sm:px-6 pb-3 overflow-x-auto [scrollbar-width:none]">
+            {["", ...new Set([...stations, ...(station ? [station] : [])])].map(s => (
+              <button key={s || "all"} onClick={() => setStation(s)} aria-pressed={station === s}
+                className={`h-8 px-3.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors ${station === s ? "border-[#E08A5C] text-[#E08A5C]" : "border-white/10 text-white/60 hover:text-white"}`}>
+                {s || "All stations"}
+              </button>
+            ))}
+          </nav>
+        )}
       </header>
 
       {/* Sound prompt */}
@@ -223,7 +245,7 @@ const KitchenDisplay = () => {
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 items-start">
             <AnimatePresence mode="popLayout">
               {visible.map(order => (
-                <Ticket key={order.id} order={order} now={now} fresh={freshIds.has(order.id)} locationLabel={locationLabel} onStatus={setStatus} />
+                <Ticket key={order.id} order={order} now={now} fresh={freshIds.has(order.id)} locationLabel={locationLabel} onStatus={setStatus} station={station} />
               ))}
             </AnimatePresence>
           </div>
@@ -240,17 +262,17 @@ const KitchenDisplay = () => {
 };
 
 const Ticket = forwardRef<HTMLElement, {
-  order: Order; now: number; fresh: boolean; locationLabel: string;
+  order: Order; now: number; fresh: boolean; locationLabel: string; station?: string;
   onStatus: (order: Order, status: OrderStatus) => void;
-}>(({ order, now, fresh, locationLabel, onStatus }, ref) => {
+}>(({ order, now, fresh, locationLabel, onStatus, station }, ref) => {
   const status = asStatus(order.status);
   const mins = minutesSince(order.created_at, now);
-  const lines = order.items?.items ?? [];
+  const lines = (order.items?.items ?? []).filter(l => !station || !l.station || l.station === station);
   const note = order.items?.note;
   const count = lines.reduce((s, l) => s + (l.quantity || 1), 0);
   const thumb = lines.find(l => l.image_url)?.image_url;
-  const late = status !== "ready" && mins >= 20;
-  const timer = status === "ready" ? "bg-emerald-500/15 text-emerald-400" : mins < 10 ? "bg-white/[0.06] text-white/70" : mins < 20 ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400";
+  const late = status !== "ready" && mins >= LATE_MIN;
+  const timer = status === "ready" ? "bg-emerald-500/15 text-emerald-400" : mins < 8 ? "bg-white/[0.06] text-white/70" : mins < LATE_MIN ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400";
   const inner = useRef<HTMLDivElement>(null);
 
   // New tickets drop in with GSAP so they read as "just arrived" rather than just appearing

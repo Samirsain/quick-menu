@@ -12,6 +12,9 @@ export interface OrderLine {
   selectedSize?: string | null;
   /** Customer's customisation, e.g. "Medium spice · no onion" */
   options?: string | null;
+  /** Kitchen station of the dish's category (KDS filter), set by place_order */
+  station?: string | null;
+  prep_minutes?: number | null;
 }
 
 /** Stored in orders.items (jsonb) so no schema change is needed for notes or step times */
@@ -31,6 +34,18 @@ export const STATUS: Record<OrderStatus, { badge: string; step: string; dot: str
   completed: { badge: "Served", step: "Served", dot: "bg-stone-400", badgeClass: "bg-stone-500/15 text-stone-600 dark:text-stone-300" },
   rejected: { badge: "Rejected", step: "Not accepted", dot: "bg-red-500", badgeClass: "bg-red-500/15 text-red-600 dark:text-red-400" },
   cancelled: { badge: "Cancelled", step: "Cancelled", dot: "bg-red-500", badgeClass: "bg-red-500/15 text-red-600 dark:text-red-400" },
+};
+
+// Staff dashboard badge tones on the Order Slip tokens (theme-aware). The kitchen board keeps badgeClass above.
+// stamp = needs a decision, wash = in the kitchen, green = ready, red = stopped
+export const STATUS_TONE: Record<OrderStatus, string> = {
+  pending: "bg-primary text-primary-foreground border-transparent",
+  accepted: "bg-secondary text-secondary-foreground border-transparent",
+  preparing: "bg-accent text-accent-foreground border-transparent",
+  ready: "bg-emerald-600/10 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300 border-transparent",
+  completed: "bg-transparent text-muted-foreground border-border",
+  rejected: "bg-destructive/10 text-destructive border-transparent",
+  cancelled: "bg-destructive/10 text-destructive border-transparent",
 };
 
 export const ACTIVE: OrderStatus[] = ["pending", "accepted", "preparing", "ready"];

@@ -1,177 +1,126 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const ONESIGNAL_APP_ID = "4d95ee74-a8c3-465f-9a2f-629f5ff98700";
+// Staff push alerts through OneSignal, sent to every device tagged with the restaurant's id (Dashboard tags it).
+// The browser only says WHAT happened ({ type, id }); the row is read here with the service key, so nobody can
+// put their own text in a restaurant's notifications. Old clients that send { record } are treated as an order.
+//   type: order | call | payment | feedback
+// Secrets: ONESIGNAL_REST_API_KEY (from the OneSignal app below), optional ONESIGNAL_APP_ID to override the app.
+
+const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID") || "2d283efb-dc80-4520-87ad-23040771c26e";
 const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-// Simple in-memory rate limiter for Edge Functions
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TABLE: Record<string, string> = { order: "orders", call: "service_calls", payment: "payments", feedback: "feedback" };
+const CALL: Record<string, string> = { waiter: "Waiter", water: "Water", bill: "Bill", help: "Help", clean: "Clean the table" };
+const MODE: Record<string, string> = { upi: "UPI", card: "Card", cash: "Cash" };
 
-function isRateLimited(key: string, maxRequests: number, windowMs: number): boolean {
+// ponytail: per-instance memory; a busy restaurant across many edge instances could see a duplicate now and then
+const sent = new Map<string, number>();
+const perRestaurant = new Map<string, { count: number; reset: number }>();
+function limited(restaurantId: string) {
   const now = Date.now();
-  const entry = rateLimitMap.get(key);
-  
-  if (!entry || now > entry.resetTime) {
-    rateLimitMap.set(key, { count: 1, resetTime: now + windowMs });
-    return false;
-  }
-  
-  if (entry.count >= maxRequests) {
-    return true;
-  }
-  
-  entry.count++;
-  return false;
+  const e = perRestaurant.get(restaurantId);
+  if (!e || now > e.reset) { perRestaurant.set(restaurantId, { count: 1, reset: now + 60_000 }); return false; }
+  return ++e.count > 30;
 }
 
-// Validate UUID format
-function isValidUUID(uuid: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
+// deno-lint-ignore no-explicit-any
+type Row = Record<string, any>;
+async function row(table: string, id: string): Promise<Row | null> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}&select=*`, {
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
+  });
+  return (await res.json())?.[0] ?? null;
+}
+
+const clean = (s: unknown, max = 40) => String(s ?? "").replace(/[^\p{L}\p{N} .,'#₹-]/gu, "").slice(0, max);
+const rupees = (n: unknown) => `₹${Math.round(Number(n) || 0)}`;
+
+function message(type: string, r: Row, tableHint?: string) {
+  const table = clean(r.table_number || tableHint || "", 10);
+  const who = clean(r.payer) || "A guest";
+  switch (type) {
+    case "order": {
+      const items: { price: number; quantity?: number }[] = r.items?.items || [];
+      const total = items.reduce((s, i) => s + Number(i.price) * (i.quantity || 1), 0);
+      const count = items.reduce((s, i) => s + (i.quantity || 1), 0);
+      return {
+        title: `New order · Table ${table}`,
+        body: `#${clean(r.order_number).replace(/^ORD0*/, "")} · ${count} item${count === 1 ? "" : "s"} · ${rupees(total)}${r.items?.note ? ` · "${clean(r.items.note, 60)}"` : ""}`,
+      };
+    }
+    case "call":
+      return { title: `Table ${table} · ${CALL[r.call_type] || "Waiter"}`, body: "A guest is waiting. Tap \"On my way\" so they see your name." };
+    case "payment":
+      return {
+        title: `Table ${table} · ${MODE[r.mode] || "Payment"} ${rupees(Number(r.amount) + Number(r.tip || 0))}`,
+        body: r.mode === "upi" ? `${who} says they paid by UPI. Check, then confirm in Cashier.`
+          : r.mode === "cash" ? `${who} wants to pay cash. Go collect it.`
+          : `${who} wants to pay by card. Take the machine over.`,
+      };
+    case "feedback":
+      return {
+        title: `${r.rating}-star review${table ? ` · Table ${table}` : ""}`,
+        body: r.comment ? `"${clean(r.comment, 100)}" Worth a visit to the table now.` : "Worth a visit to the table now.",
+      };
+  }
+  return null;
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { record } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const type: string = body.record ? "order" : String(body.type || "");
+    const id: string = String(body.record?.id || body.id || "");
+    if (!TABLE[type] || !UUID.test(id)) return json({ success: false, error: "Invalid request" }, 400);
 
-    // Validate input
-    if (!record || !record.restaurant_id || !record.order_number) {
-      console.log("Invalid order data received");
-      return new Response(JSON.stringify({ success: false, error: "Invalid order data" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const key = `${type}:${id}`;
+    if (sent.has(key)) return json({ success: true, message: "Already sent" });
 
-    // Validate restaurant_id is a valid UUID
-    if (!isValidUUID(record.restaurant_id)) {
-      return new Response(JSON.stringify({ success: false, error: "Invalid restaurant ID" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const r = await row(TABLE[type], id);
+    if (!r) return json({ success: false, error: "Not found" }, 404);
+    // Only fresh events: an old id replayed later sends nothing
+    if (Date.now() - new Date(r.created_at).getTime() > 10 * 60_000) return json({ success: true, message: "Too old to notify" });
+    if (type === "feedback" && Number(r.rating) > 2) return json({ success: true, message: "Only low ratings notify" });
+    if (limited(r.restaurant_id)) return json({ success: false, error: "Rate limit exceeded" }, 429);
 
-    // Rate limit: max 30 notifications per restaurant per minute
-    const rateLimitKey = `notification_${record.restaurant_id}`;
-    if (isRateLimited(rateLimitKey, 30, 60 * 1000)) {
-      console.log("Rate limit exceeded for restaurant:", record.restaurant_id);
-      return new Response(JSON.stringify({ success: false, error: "Rate limit exceeded" }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const tableHint = type === "feedback" ? (await row("orders", r.order_id))?.table_number : undefined;
+    const msg = message(type, r, tableHint);
+    if (!msg) return json({ success: false, error: "Unknown type" }, 400);
 
-    // Get restaurant details
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    if (!ONESIGNAL_REST_API_KEY) return json({ success: true, message: "Skipped: ONESIGNAL_REST_API_KEY is not set" });
 
-    const restaurantRes = await fetch(
-      `${supabaseUrl}/rest/v1/restaurants?id=eq.${record.restaurant_id}&select=name,user_id`,
-      {
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-        },
-      }
-    );
-
-    const restaurants = await restaurantRes.json();
-    const restaurant = restaurants[0];
-
-    if (!restaurant) {
-      console.log("Restaurant not found:", record.restaurant_id);
-      return new Response(JSON.stringify({ success: false, error: "Restaurant not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Calculate order total with validation
-    let orderTotal = 0;
-    if (record.items?.items && Array.isArray(record.items.items)) {
-      orderTotal = record.items.items.reduce(
-        (sum: number, item: any) => {
-          const price = parseFloat(item.price) || 0;
-          const quantity = parseInt(item.quantity) || 1;
-          // Sanity check: max price 100000, max quantity 99
-          if (price > 0 && price < 100000 && quantity > 0 && quantity < 100) {
-            return sum + (price * quantity);
-          }
-          return sum;
-        },
-        0
-      );
-    }
-
-    // Check if OneSignal API key is configured
-    if (!ONESIGNAL_REST_API_KEY) {
-      console.log("OneSignal API key not configured - skipping push notification");
-      return new Response(JSON.stringify({ success: true, message: "Notification skipped - no API key" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Sanitize order number for display (alphanumeric only)
-    const safeOrderNumber = String(record.order_number).replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
-    const safeTableNumber = String(record.table_number || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
-
-    // Send OneSignal notification to restaurant owner using tags
-    const notification = {
-      app_id: ONESIGNAL_APP_ID,
-      filters: [
-        { field: "tag", key: "restaurant_id", relation: "=", value: record.restaurant_id },
-      ],
-      headings: { en: "🔔 New Order Received!" },
-      contents: {
-        en: `Order #${safeOrderNumber} • Table ${safeTableNumber} • ₹${orderTotal.toFixed(0)}`,
-      },
-      data: {
-        order_id: record.id,
-        restaurant_id: record.restaurant_id,
-        order_number: safeOrderNumber,
-        table_number: safeTableNumber,
-        type: "new_order",
-      },
-      priority: 10,
-      ttl: 3600,
-    };
-
-    console.log("Sending notification for order:", safeOrderNumber);
-
-    const response = await fetch("https://api.onesignal.com/notifications", {
+    const res = await fetch("https://api.onesignal.com/notifications", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Key ${ONESIGNAL_REST_API_KEY}`, // os_v2 keys use "Key", not "Basic"
-      },
-      body: JSON.stringify(notification),
+      headers: { "Content-Type": "application/json", Authorization: `Key ${ONESIGNAL_REST_API_KEY}` }, // os_v2 keys use "Key"
+      body: JSON.stringify({
+        app_id: ONESIGNAL_APP_ID,
+        filters: [{ field: "tag", key: "restaurant_id", relation: "=", value: r.restaurant_id }],
+        headings: { en: msg.title },
+        contents: { en: msg.body },
+        data: { type, id, restaurant_id: r.restaurant_id },
+        priority: 10,
+        ttl: type === "order" || type === "call" ? 900 : 3600,
+      }),
     });
-
-    const result = await response.json();
-    
-    if (result.errors) {
-      console.error("OneSignal errors:", result.errors);
-    } else {
-      console.log("Notification sent successfully for order:", safeOrderNumber);
-    }
-
-    return new Response(JSON.stringify({ success: true, result }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const result = await res.json();
+    if (result.errors) console.error("OneSignal errors:", result.errors);
+    sent.set(key, Date.now());
+    for (const [k, t] of sent) if (Date.now() - t > 15 * 60_000) sent.delete(k);
+    return json({ success: !result.errors, result });
   } catch (error) {
-    console.error("Error sending notification:", error);
-    return new Response(JSON.stringify({ success: false, error: "Internal error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("Notification error:", error);
+    return json({ success: false, error: "Internal error" }, 500);
   }
 });

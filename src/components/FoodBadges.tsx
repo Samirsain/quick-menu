@@ -22,7 +22,13 @@ export const VegMark = ({ isVeg, className }: { isVeg: boolean | null | undefine
 };
 
 export const BestsellerBadge = ({ className }: { className?: string }) => (
-  <span className={cn("text-[10.5px] font-semibold uppercase tracking-[0.14em] text-amber-700 dark:text-amber-500", className)}>
+  <span className={cn("inline-flex items-center h-5 px-2 rounded-full border border-menu-accent/35 bg-menu-card text-[11px] font-semibold leading-none text-menu-accent-2 dark:text-menu-accent", className)}>
     Bestseller
+  </span>
+);
+
+export const ChefPickBadge = ({ className }: { className?: string }) => (
+  <span className={cn("inline-flex items-center h-5 px-2 rounded-full bg-menu-tint text-[11px] font-semibold leading-none text-menu-accent-2 dark:text-menu-accent", className)}>
+    Chef's pick
   </span>
 );
