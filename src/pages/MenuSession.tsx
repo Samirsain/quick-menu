@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, QrCode } from "lucide-react";
+import { QrCode } from "lucide-react";
 import { getClientFingerprint } from "@/lib/security";
+import { isZenCafe } from "@/data/mockRestaurants";
 
 /**
  * QR Code Landing Page - Creates a new session and redirects to menu
@@ -28,10 +29,18 @@ const MenuSession = () => {
 
   const createSessionAndRedirect = async () => {
     try {
-      const fingerprint = getClientFingerprint();
-
       // Validate table number from QR if present
       const sanitizedTable = tableFromQR ? tableFromQR.replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) : null;
+
+      if (isZenCafe(restaurantId)) {
+        const redirectUrl = sanitizedTable
+          ? `/menu/${restaurantId}?table=${encodeURIComponent(sanitizedTable)}`
+          : `/menu/${restaurantId}`;
+        navigate(redirectUrl, { replace: true });
+        return;
+      }
+
+      const fingerprint = getClientFingerprint();
 
       // If per-table QR, check if this table's QR is disabled
       if (sanitizedTable) {
@@ -83,28 +92,29 @@ const MenuSession = () => {
     }
   };
 
+  // Same calm paper screen as the menu splash and its "session ended" state, so the scan never flashes a different look
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-black p-4">
-        <div className="max-w-md w-full text-center">
-          <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <QrCode className="h-10 w-10 text-red-500" />
+      <div className="min-h-[100dvh] flex items-center justify-center bg-menu-bg text-menu-ink p-6">
+        <div className="max-w-sm text-center">
+          <div className="w-12 h-12 mx-auto mb-6 rounded-full bg-menu-tint text-menu-accent flex items-center justify-center">
+            <QrCode className="h-5 w-5" strokeWidth={1.75} />
           </div>
-          <h1 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-white">Oops!</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mb-6">{error}</p>
-          <p className="text-sm text-zinc-400">
-            Please scan the QR code at the restaurant to view the menu.
-          </p>
+          <h1 className="font-display text-3xl tracking-tight">Couldn't open the menu</h1>
+          <p className="mt-3 text-[15px] leading-relaxed text-menu-muted">{error}</p>
+          <p className="mt-2 text-sm text-menu-muted">Scan the QR code on your table to try again.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-500 to-red-500">
-      <div className="text-center text-white">
-        <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" />
-        <p className="text-lg font-medium">Loading menu...</p>
+    <div className="min-h-[100dvh] flex items-center justify-center bg-menu-bg text-menu-ink" role="status">
+      <div className="text-center">
+        <p className="font-display text-2xl tracking-tight">Opening the menu</p>
+        <div className="relative h-px w-24 mx-auto mt-6 overflow-hidden bg-menu-line">
+          <div className="absolute inset-y-0 w-1/2 bg-menu-accent animate-[menu-load_1.1s_ease-in-out_infinite]" />
+        </div>
       </div>
     </div>
   );

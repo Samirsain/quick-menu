@@ -28,32 +28,6 @@ interface AIMenuImportProps {
   onImportComplete: () => void;
 }
 
-const PLACEHOLDER_COLORS = [
-  "from-orange-400 to-red-400", "from-emerald-400 to-teal-400",
-  "from-violet-400 to-purple-400", "from-amber-400 to-yellow-400",
-  "from-pink-400 to-rose-400", "from-cyan-400 to-blue-400",
-];
-
-function getCategoryEmoji(name: string): string {
-  const l = name.toLowerCase();
-  if (l.includes("starter") || l.includes("appetizer")) return "🥗";
-  if (l.includes("main") || l.includes("entree")) return "🍽️";
-  if (l.includes("dessert") || l.includes("sweet")) return "🍰";
-  if (l.includes("drink") || l.includes("beverage") || l.includes("juice")) return "🥤";
-  if (l.includes("soup")) return "🍲";
-  if (l.includes("pizza")) return "🍕";
-  if (l.includes("burger") || l.includes("sandwich")) return "🍔";
-  if (l.includes("chicken")) return "🍗";
-  if (l.includes("fish") || l.includes("seafood")) return "🐟";
-  if (l.includes("veg")) return "🥦";
-  if (l.includes("rice") || l.includes("biryani")) return "🍚";
-  if (l.includes("bread") || l.includes("roti") || l.includes("naan")) return "🫓";
-  if (l.includes("snack")) return "🍟";
-  if (l.includes("egg")) return "🥚";
-  if (l.includes("mutton") || l.includes("lamb")) return "🍖";
-  return "🍴";
-}
-
 const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -70,7 +44,7 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [creditsTotal] = useState(3);
   const [creditsLoaded, setCreditsLoaded] = useState(false);
-  const [importedItems, setImportedItems] = useState<{ name: string; emoji: string; color: string }[]>([]);
+  const [importedItems, setImportedItems] = useState<{ name: string }[]>([]);
 
   // Load current credit usage on mount
   const loadCredits = useCallback(async () => {
@@ -215,8 +189,6 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
       cat.items.map(item => ({
         ...item,
         categoryName: cat.name,
-        emoji: getCategoryEmoji(cat.name),
-        color: PLACEHOLDER_COLORS[catIdx % PLACEHOLDER_COLORS.length],
       }))
     );
     const total = allItems.length;
@@ -264,13 +236,13 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
         imported++;
         setImportedCount(imported);
         setImportProgress(Math.round((imported / total) * 100));
-        setImportedItems(prev => [...prev, { name: item.name, emoji: item.emoji, color: item.color }]);
+        setImportedItems(prev => [...prev, { name: item.name }]);
         await new Promise(r => setTimeout(r, 120)); // Slightly slower for visible animation
       }
 
       setStep("done");
       toast({
-        title: "🎉 Menu Imported!",
+        title: "Menu imported",
         description: `${imported} items added across ${parsedCategories.length} categories`,
         duration: 6000,
       });
@@ -303,24 +275,24 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg">
-          <ScanSearch className="h-5 w-5 text-white" />
+        <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
+          <ScanSearch className="h-5 w-5 text-primary" />
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-base flex items-center gap-2 flex-wrap">
             AI Menu Import
-            <Badge className="bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-500/30 text-xs rounded-full" variant="outline">
+            <Badge className="bg-accent text-accent-foreground border-transparent text-xs rounded-full" variant="outline">
               {creditsRemaining}/{creditsTotal} credits left
             </Badge>
           </h3>
-          <p className="text-xs text-muted-foreground">Upload up to 20 menu photos — AI extracts all items, descriptions, and prices</p>
+          <p className="text-xs text-muted-foreground">Upload up to 20 menu photos. AI reads the items, descriptions and prices.</p>
         </div>
       </div>
 
       {/* Credits bar */}
       <div className="flex gap-1.5">
         {Array.from({ length: creditsTotal }).map((_, i) => (
-          <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i < creditsUsed ? 'bg-zinc-300 dark:bg-zinc-600' : 'bg-violet-500'}`} />
+          <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i < creditsUsed ? 'bg-muted' : 'bg-primary'}`} />
         ))}
       </div>
 
@@ -328,10 +300,10 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
       <AnimatePresence>
         {errorMsg && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-            <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950/30 rounded-2xl border border-red-200 dark:border-red-800">
-              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm font-medium text-red-700 dark:text-red-400 flex-1">{errorMsg}</p>
-              <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-red-600"><X className="h-4 w-4" /></button>
+            <div className="flex items-start gap-3 p-4 bg-destructive/10 rounded-2xl border border-destructive/25">
+              <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+              <p className="text-sm font-medium text-destructive flex-1">{errorMsg}</p>
+              <button onClick={() => setErrorMsg(null)} className="text-destructive/70 hover:text-destructive"><X className="h-4 w-4" /></button>
             </div>
           </motion.div>
         )}
@@ -348,8 +320,8 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
               className={`relative border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
-                dragOver ? "border-violet-500 bg-violet-50 dark:bg-violet-950/20" :
-                "border-zinc-300 dark:border-zinc-700 hover:border-violet-400 hover:bg-violet-50/50 dark:hover:bg-violet-950/10"
+                dragOver ? "border-primary bg-accent/50" :
+                "border-border hover:border-primary/50 hover:bg-accent/40"
               }`}
             >
               <input
@@ -361,8 +333,8 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
                 onChange={(e) => e.target.files && addFiles(e.target.files)}
               />
               <motion.div animate={dragOver ? { scale: 1.05 } : { scale: 1 }} className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 rounded-2xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                  <Images className="h-6 w-6 text-violet-500" />
+                <div className="w-12 h-12 rounded-2xl bg-accent flex items-center justify-center">
+                  <Images className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <p className="font-semibold text-sm">Drop menu photos here</p>
@@ -380,22 +352,22 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
                 {/* Preview grid — larger thumbnails with numbers */}
                 <div className="grid grid-cols-3 gap-3">
                   {images.map((img, idx) => (
-                    <div key={idx} className="relative group aspect-[4/3] rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 shadow-sm">
+                    <div key={idx} className="relative group aspect-[4/3] rounded-xl overflow-hidden border-2 border-border shadow-sm">
                       <img src={img.previewUrl} alt={`Menu page ${idx + 1}`} className="w-full h-full object-cover" />
                       {/* Image number badge */}
                       <div className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
-                        <span className="text-[10px] font-bold text-white">{idx + 1}</span>
+                        <span className="text-[11px] font-bold text-white">{idx + 1}</span>
                       </div>
                       {/* Remove button */}
                       <button
                         onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
-                        className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                        className="absolute top-1.5 right-1.5 w-6 h-6 bg-destructive hover:bg-destructive/90 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
                       >
                         <X className="h-3 w-3" />
                       </button>
                       {/* File size */}
                       <div className="absolute bottom-1.5 right-1.5">
-                        <span className="text-[9px] font-medium bg-black/50 text-white px-1.5 py-0.5 rounded-full">
+                        <span className="text-[11px] font-medium bg-black/50 text-white px-1.5 py-0.5 rounded-full">
                           {(img.file.size / 1024 / 1024).toFixed(1)}MB
                         </span>
                       </div>
@@ -405,10 +377,10 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
                   {images.length < 20 && (
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="aspect-[4/3] rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-violet-400 hover:bg-violet-50/50 dark:hover:bg-violet-950/10 flex flex-col items-center justify-center text-muted-foreground hover:text-violet-500 transition-all gap-1"
+                      className="aspect-[4/3] rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-accent/40 flex flex-col items-center justify-center text-muted-foreground hover:text-primary transition-all gap-1"
                     >
                       <Plus className="h-6 w-6" />
-                      <span className="text-[10px] font-medium">Add more</span>
+                      <span className="text-[11px] font-medium">Add more</span>
                     </button>
                   )}
                 </div>
@@ -418,7 +390,7 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
                   <p className="text-xs text-muted-foreground">
                     {images.length} image{images.length !== 1 ? "s" : ""} ready to analyze
                   </p>
-                  <button onClick={() => { images.forEach(img => URL.revokeObjectURL(img.previewUrl)); setImages([]); }} className="text-xs text-red-500 hover:text-red-600 font-medium">
+                  <button onClick={() => { images.forEach(img => URL.revokeObjectURL(img.previewUrl)); setImages([]); }} className="text-xs text-destructive hover:text-destructive/80 font-medium">
                     Clear all
                   </button>
                 </div>
@@ -427,7 +399,7 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
                 <Button
                   onClick={handleAnalyze}
                   disabled={creditsRemaining <= 0}
-                  className="w-full h-12 rounded-2xl bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold gap-2 shadow-lg shadow-violet-500/25 disabled:opacity-50"
+                  className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-2 disabled:opacity-50"
                 >
                   <ScanSearch className="h-5 w-5" />
                   {creditsRemaining <= 0 ? "No credits remaining" : `Analyze ${images.length} Image${images.length !== 1 ? "s" : ""} with AI`}
@@ -446,13 +418,13 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
             className="flex flex-col items-center gap-5 py-10"
           >
             <div className="relative">
-              <motion.div className="absolute inset-0 rounded-full border-4 border-violet-300"
+              <motion.div className="absolute inset-0 rounded-full border-4 border-primary/40"
                 animate={{ scale: [1, 1.4, 1], opacity: [0.5, 0, 0.5] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
                 style={{ width: 80, height: 80, margin: -8 }}
               />
-              <div className="w-16 h-16 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                <ScanSearch className="h-8 w-8 text-violet-500 animate-pulse" />
+              <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center">
+                <ScanSearch className="h-8 w-8 text-primary animate-pulse" />
               </div>
             </div>
             <div className="text-center">
@@ -461,7 +433,7 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
             </div>
             <div className="flex gap-1.5">
               {[0, 1, 2].map(i => (
-                <motion.div key={i} className="w-2 h-2 rounded-full bg-violet-500"
+                <motion.div key={i} className="w-2 h-2 rounded-full bg-primary"
                   animate={{ y: [0, -8, 0] }}
                   transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
                 />
@@ -473,32 +445,30 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
         {/* REVIEW */}
         {step === "review" && parsedCategories.length > 0 && (
           <motion.div key="review" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-violet-50 dark:bg-violet-950/20 rounded-2xl border border-violet-200 dark:border-violet-800">
+            <div className="flex items-center justify-between p-4 bg-accent/50 rounded-2xl border border-primary/20">
               <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-5 w-5 text-violet-600 flex-shrink-0" />
+                <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-sm text-violet-800 dark:text-violet-300">
+                  <p className="font-semibold text-sm text-foreground">
                     Found {totalItems} new items in {parsedCategories.length} categories
                   </p>
-                  <p className="text-xs text-violet-600 dark:text-violet-400">Duplicates already removed • Review and import</p>
+                  <p className="text-xs text-accent-foreground">Duplicates already removed • Review and import</p>
                 </div>
               </div>
-              <button onClick={reset} className="text-violet-400 hover:text-violet-600"><RefreshCw className="h-4 w-4" /></button>
+              <button onClick={reset} className="text-muted-foreground hover:text-foreground"><RefreshCw className="h-4 w-4" /></button>
             </div>
 
             <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
               {parsedCategories.map((cat, catIdx) => {
                 const isExpanded = expandedCategories.has(cat.name);
-                const colorClass = PLACEHOLDER_COLORS[catIdx % PLACEHOLDER_COLORS.length];
-                const emoji = getCategoryEmoji(cat.name);
                 return (
-                  <Card key={cat.name} className="border-0 shadow-sm rounded-2xl overflow-hidden">
+                  <Card key={cat.name} className="overflow-hidden">
                     <button
                       onClick={() => setExpandedCategories(prev => { const n = new Set(prev); n.has(cat.name) ? n.delete(cat.name) : n.add(cat.name); return n; })}
                       className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors text-left"
                     >
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-sm shadow-sm`}>{emoji}</div>
+                        <div className="w-8 h-8 rounded-full bg-accent text-primary flex items-center justify-center font-display text-sm" aria-hidden>{cat.name.charAt(0)}</div>
                         <span className="font-semibold text-sm">{cat.name}</span>
                         <Badge variant="secondary" className="rounded-full text-xs">{cat.items.length}</Badge>
                       </div>
@@ -510,14 +480,14 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
                           <div className="px-3 pb-3 space-y-1.5 border-t">
                             {cat.items.map((item, itemIdx) => (
                               <div key={itemIdx} className="flex items-start gap-3 p-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
-                                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-base flex-shrink-0 shadow-sm mt-0.5`}>{emoji}</div>
+                                
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm">{item.name}</p>
                                   {item.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.description}</p>}
                                   {item.has_size_variants && item.size_variants.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-1">
                                       {item.size_variants.map((v, vi) => (
-                                        <span key={vi} className="text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 px-2 py-0.5 rounded-full">
+                                        <span key={vi} className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
                                           {v.name}: ₹{v.price}
                                         </span>
                                       ))}
@@ -541,7 +511,7 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
             <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
               <Button
                 onClick={handleImport}
-                className="w-full h-12 rounded-2xl bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold gap-2 shadow-lg shadow-violet-500/25"
+                className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-2"
               >
                 <Utensils className="h-5 w-5" />
                 Import All {totalItems} Items
@@ -554,15 +524,15 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
         {step === "importing" && (
           <motion.div key="importing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
             {/* Progress header */}
-            <div className="flex items-center gap-3 p-3 bg-violet-50 dark:bg-violet-950/20 rounded-2xl border border-violet-200 dark:border-violet-800">
-              <Loader2 className="h-5 w-5 text-violet-500 animate-spin flex-shrink-0" />
+            <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-2xl border border-primary/20">
+              <Loader2 className="h-5 w-5 text-primary animate-spin flex-shrink-0" />
               <div className="flex-1">
-                <p className="font-semibold text-sm text-violet-800 dark:text-violet-300">
+                <p className="font-semibold text-sm text-foreground">
                   Adding items... {importedCount}/{totalItems}
                 </p>
                 <Progress value={importProgress} className="h-1.5 rounded-full mt-1.5" />
               </div>
-              <span className="text-xs font-mono text-violet-600 dark:text-violet-400">{importProgress}%</span>
+              <span className="text-xs font-mono text-accent-foreground">{importProgress}%</span>
             </div>
 
             {/* Animated item list — shows items appearing one by one */}
@@ -573,12 +543,9 @@ const AIMenuImport = ({ restaurantId, onImportComplete }: AIMenuImportProps) => 
                   initial={{ opacity: 0, x: -20, scale: 0.95 }}
                   animate={{ opacity: 1, x: 0, scale: 1 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="flex items-center gap-2.5 p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 shadow-sm"
+                  className="flex items-center gap-2.5 p-2 rounded-xl bg-card border border-border"
                 >
-                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center text-sm flex-shrink-0 shadow-sm`}>
-                    {item.emoji}
-                  </div>
-                  <span className="text-sm font-medium truncate flex-1">{item.name}</span>
+                  <span className="text-sm font-medium truncate flex-1 pl-1">{item.name}</span>
                   <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                 </motion.div>
               ))}

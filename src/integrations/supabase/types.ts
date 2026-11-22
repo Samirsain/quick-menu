@@ -460,11 +460,32 @@ export type Database = {
       owns_restaurant: { Args: { p_restaurant_id: string }; Returns: boolean }
       toggle_restaurant_status: {
         Args: {
-          p_admin_email: string
+          p_token: string
           p_is_active: boolean
           p_restaurant_id: string
         }
         Returns: boolean
+      }
+      admin_login: {
+        Args: { p_email: string; p_password: string }
+        Returns: string | null
+      }
+      admin_logout: {
+        Args: { p_token: string }
+        Returns: undefined
+      }
+      admin_list_restaurants: {
+        Args: { p_token: string }
+        Returns: {
+          id: string
+          name: string
+          email: string
+          phone: string | null
+          is_active: boolean
+          created_at: string
+          logo_url: string | null
+          user_id: string
+        }[]
       }
       update_admin_password: {
         Args: {

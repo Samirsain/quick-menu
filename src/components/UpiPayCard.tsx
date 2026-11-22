@@ -34,7 +34,7 @@ export default function UpiPayCard({ upiId, payee, amount, note }: { upiId: stri
   return (
     <div ref={root} className="rounded-[20px] border border-menu-line bg-menu-card p-4">
       <div data-anim className="flex items-baseline justify-between">
-        <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-menu-muted">Your bill</span>
+        <span className="text-sm font-medium text-menu-muted">Your bill</span>
         <span className="font-display text-[28px] tabular-nums text-menu-ink"><CountUp value={amount} format={inr} duration={0.8} /></span>
       </div>
       <a
@@ -43,7 +43,7 @@ export default function UpiPayCard({ upiId, payee, amount, note }: { upiId: stri
         onPointerDown={(e) => gsap.to(e.currentTarget, { scale: 0.97, duration: 0.12 })}
         onPointerUp={(e) => gsap.to(e.currentTarget, { scale: 1, duration: 0.35, ease: "back.out(3)" })}
         onPointerLeave={(e) => gsap.to(e.currentTarget, { scale: 1, duration: 0.2 })}
-        className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-menu-accent to-menu-accent-2 text-[15px] font-semibold text-[#FBF4EA] shadow-[0_14px_30px_-14px_rgba(138,58,30,0.7)]"
+        className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-menu-accent to-menu-accent-2 dark:to-menu-accent text-[15px] font-semibold text-[#FBF4EA] dark:text-menu-hero shadow-[0_14px_30px_-14px_rgba(138,58,30,0.7)]"
       >
         Pay {inr(amount)} with UPI
       </a>

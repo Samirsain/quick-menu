@@ -12,6 +12,7 @@ import {
   Search, Calendar, TrendingUp, X, XCircle, ChefHat, Printer
 } from "lucide-react";
 import { printKot } from "@/lib/printKot";
+import { STATUS, STATUS_TONE, asStatus, isActive, type OrderStatus } from "@/lib/orderFlow";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,6 +50,8 @@ interface OrderManagementProps {
 type FilterTab = 'active' | 'completed' | 'cancelled' | 'all';
 
 const GROUPING_WINDOW_MS = 90 * 60 * 1000; // 90 minutes
+
+const LEAD_ORDER: OrderStatus[] = ["pending", "ready", "accepted", "preparing", "completed", "rejected", "cancelled"];
 
 const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderManagementProps) => {
   const { toast } = useToast();
@@ -171,8 +174,8 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
       if (error) throw error;
 
       toast({
-        title: "✅ Order updated",
-        description: `Status changed to ${newStatus}`,
+        title: "Order updated",
+        description: `Marked as ${getStatusLabel(newStatus).toLowerCase()}`,
         duration: 2000,
       });
     } catch (error: any) {
@@ -216,7 +219,7 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
   // Filter by tab (active/completed/cancelled/all)
   const filteredOrders = useMemo(() => {
     if (activeTab === 'active') {
-      return filteredBySearch.filter(o => ['pending', 'accepted', 'preparing'].includes(o.status));
+      return filteredBySearch.filter(o => isActive(o.status));
     } else if (activeTab === 'completed') {
       return filteredBySearch.filter(o => o.status === 'completed');
     } else if (activeTab === 'cancelled') {
@@ -306,36 +309,9 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/50";
-      case "accepted":
-        return "bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/50";
-      case "preparing":
-        return "bg-orange-500/20 text-orange-700 dark:text-orange-400 border-orange-500/50";
-      case "completed":
-        return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/50";
-      case "rejected":
-        return "bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/50";
-      case "cancelled":
-        return "bg-rose-500/20 text-rose-700 dark:text-rose-400 border-rose-500/50";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "pending": return "⏳ Pending";
-      case "accepted": return "✅ Accepted";
-      case "preparing": return "👨‍🍳 Preparing";
-      case "completed": return "✓ Completed";
-      case "rejected": return "✗ Rejected";
-      case "cancelled": return "✗ Cancelled";
-      default: return status.toUpperCase();
-    }
-  };
+  // Labels come from the shared order flow so the dashboard and kitchen display use the same words
+  const getStatusColor = (status: string) => STATUS_TONE[asStatus(status)];
+  const getStatusLabel = (status: string) => STATUS[asStatus(status)].badge;
 
   const getTimeAgo = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -364,7 +340,7 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
   };
 
   // Stats based on filtered orders (respects date filter)
-  const activeOrdersCount = filteredByDate.filter(o => ['pending', 'accepted', 'preparing'].includes(o.status)).length;
+  const activeOrdersCount = filteredByDate.filter(o => isActive(o.status)).length;
   const completedOrdersCount = filteredByDate.filter(o => o.status === 'completed').length;
   const cancelledOrdersCount = filteredByDate.filter(o => o.status === 'rejected' || o.status === 'cancelled').length;
   
@@ -425,15 +401,15 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Order Management</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">Orders</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Real-time order tracking grouped by customer session
+            Live orders, grouped by table visit
           </p>
         </div>
-        <Button 
-          onClick={fetchOrders} 
+        <Button
+          onClick={fetchOrders}
           variant="outline"
-          className="gap-2 rounded-xl shadow-sm hover:shadow-md transition-shadow"
+          className="gap-2"
           disabled={isRefreshing}
         >
           <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -442,51 +418,41 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4 bg-orange-50 dark:bg-orange-950/40 border-0 shadow-md rounded-2xl cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveTab('active')}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {([
+          { label: "Active orders", value: activeOrdersCount, Icon: Timer, tab: 'active' as FilterTab, stamp: true },
+          { label: "Completed", value: completedOrdersCount, Icon: CheckCircle2, tab: 'completed' as FilterTab },
+          { label: "Cancelled", value: cancelledOrdersCount, Icon: XCircle, tab: 'cancelled' as FilterTab },
+        ]).map(({ label, value, Icon, tab, stamp }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => { setActiveTab(tab); if (tab !== 'active') setDateFilter('all'); }}
+            aria-pressed={activeTab === tab}
+            className={`rounded-[20px] border bg-card p-4 text-left transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeTab === tab ? 'border-primary/50' : ''}`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${stamp ? 'bg-accent text-primary' : 'bg-muted/70 text-foreground/70'}`}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold tabular-nums leading-tight">{value}</p>
+                <p className="text-xs text-muted-foreground font-medium">{label}</p>
+              </div>
+            </div>
+          </button>
+        ))}
+        <div className="rounded-[20px] border bg-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-orange-100 dark:bg-orange-900/50 shadow-sm">
-              <Timer className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+            <div className="h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 bg-muted/70 text-foreground/70">
+              <TrendingUp className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-extrabold">{activeOrdersCount}</p>
-              <p className="text-xs text-muted-foreground font-medium">Active Orders</p>
+              <p className="text-2xl font-semibold tabular-nums leading-tight">₹{filteredRevenue.toFixed(0)}</p>
+              <p className="text-xs text-muted-foreground font-medium">{dateLabel} revenue</p>
             </div>
           </div>
-        </Card>
-        <Card className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border-0 shadow-md rounded-2xl cursor-pointer hover:shadow-lg transition-all" onClick={() => { setActiveTab('completed'); setDateFilter('all'); }}>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 shadow-sm">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold">{completedOrdersCount}</p>
-              <p className="text-xs text-muted-foreground font-medium">Completed</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4 bg-red-50 dark:bg-red-950/40 border-0 shadow-md rounded-2xl cursor-pointer hover:shadow-lg transition-all" onClick={() => { setActiveTab('cancelled'); setDateFilter('all'); }}>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-red-100 dark:bg-red-900/50 shadow-sm">
-              <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold">{cancelledOrdersCount}</p>
-              <p className="text-xs text-muted-foreground font-medium">Cancelled</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4 bg-blue-50 dark:bg-blue-950/40 border-0 shadow-md rounded-2xl">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/50 shadow-sm">
-              <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold">₹{filteredRevenue.toFixed(0)}</p>
-              <p className="text-xs text-muted-foreground font-medium">{dateLabel} Revenue</p>
-            </div>
-          </div>
-        </Card>
+        </div>
       </div>
 
       {/* Filter Tabs & Search */}
@@ -504,12 +470,13 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
                   setDateFilter('all');
                 }
               }}
-              className={`gap-2 rounded-full shadow-sm ${activeTab === tab.id ? 'shadow-md' : 'hover:shadow-md'} transition-all`}
+              aria-pressed={activeTab === tab.id}
+              className="gap-2 rounded-full"
             >
               {tab.label}
-              <Badge variant={activeTab === tab.id ? 'secondary' : 'outline'} className="ml-1 rounded-full">
+              <span className={`min-w-5 h-5 px-1.5 rounded-full text-[11px] font-semibold tabular-nums flex items-center justify-center ${activeTab === tab.id ? 'bg-primary-foreground/20' : 'bg-muted'}`}>
                 {tab.count}
-              </Badge>
+              </span>
             </Button>
           ))}
         </div>
@@ -519,15 +486,19 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={`Search by order #, ${locationLabelLower}, or item...`}
+              type="search"
+              aria-label="Search orders"
+              placeholder={`Search by order #, ${locationLabelLower}, or item`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-10 h-11 rounded-xl shadow-sm border-zinc-200 dark:border-zinc-700"
+              className="pl-10 pr-10 h-11 rounded-full"
             />
             {searchQuery && (
               <button
+                type="button"
+                aria-label="Clear search"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -539,7 +510,7 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
               variant={dateFilter === 'today' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setDateFilter('today')}
-              className="gap-2 rounded-full shadow-sm"
+              className="gap-2 rounded-full"
             >
               <Calendar className="h-4 w-4" />
               Today
@@ -548,7 +519,7 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
               variant={dateFilter === 'week' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setDateFilter('week')}
-              className="rounded-full shadow-sm"
+              className="rounded-full"
             >
               This Week
             </Button>
@@ -556,7 +527,7 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
               variant={dateFilter === 'month' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setDateFilter('month')}
-              className="rounded-full shadow-sm"
+              className="rounded-full"
             >
               This Month
             </Button>
@@ -564,7 +535,7 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
               variant={dateFilter === 'all' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setDateFilter('all')}
-              className="rounded-full shadow-sm"
+              className="rounded-full"
             >
               All Time
             </Button>
@@ -587,40 +558,36 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
               >
-                <Card className={`overflow-hidden transition-all duration-300 border-0 shadow-md rounded-2xl ${
-                  group.allCompleted 
-                    ? 'opacity-70 bg-muted/30' 
-                    : group.hasNewOrder 
-                      ? 'ring-2 ring-orange-500/50 shadow-xl shadow-orange-500/10' 
-                      : 'hover:shadow-lg'
+                <Card className={`overflow-hidden transition-colors duration-300 ${
+                  group.allCompleted
+                    ? 'bg-background/60'
+                    : group.hasNewOrder
+                      ? 'border-primary/50 ring-1 ring-primary/25'
+                      : 'hover:border-primary/30'
                 }`}>
                   {/* Session Header */}
                   <button
+                    type="button"
+                    aria-expanded={isExpanded}
                     onClick={() => toggleSessionExpand(group.sessionId)}
-                    className="w-full p-4 md:p-5 flex items-center justify-between gap-4 hover:bg-muted/50 transition-colors text-left"
+                    className="w-full p-4 md:p-5 flex items-center justify-between gap-4 hover:bg-muted/30 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-2xl ${
-                        group.allCompleted 
-                          ? 'bg-muted' 
-                          : group.hasNewOrder 
-                            ? 'bg-orange-500/20 animate-pulse' 
-                            : 'bg-primary/10'
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <div className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        group.allCompleted
+                          ? 'bg-muted/70 text-muted-foreground'
+                          : group.hasNewOrder
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-accent text-primary'
                       }`}>
-                        {group.hasNewOrder && !group.allCompleted && (
-                          <Bell className="h-6 w-6 text-orange-500 animate-bounce" />
-                        )}
-                        {!group.hasNewOrder && !group.allCompleted && (
-                          <Utensils className="h-6 w-6 text-primary" />
-                        )}
-                        {group.allCompleted && (
-                          <CheckCircle2 className="h-6 w-6 text-muted-foreground" />
-                        )}
+                        {group.hasNewOrder && !group.allCompleted && <Bell className="h-5 w-5" />}
+                        {!group.hasNewOrder && !group.allCompleted && <Utensils className="h-5 w-5" />}
+                        {group.allCompleted && <CheckCircle2 className="h-5 w-5" />}
                       </div>
-                      
-                      <div>
+
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-xl md:text-2xl font-bold">
+                          <h3 className={`font-display text-2xl leading-tight ${group.allCompleted ? 'text-muted-foreground' : ''}`}>
                             {locationLabel} {group.tableNumber}
                           </h3>
                           {group.orders.length > 1 && (
@@ -634,11 +601,11 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
                             <Clock className="h-3.5 w-3.5" />
                             {getTimeAgo(group.latestOrderTime)}
                           </span>
-                          <span>•</span>
+                          <span aria-hidden>·</span>
                           <span>{group.totalItems} items</span>
                           {dateFilter !== 'today' && (
                             <>
-                              <span>•</span>
+                              <span aria-hidden>·</span>
                               <span>{formatDate(group.latestOrderTime)}</span>
                             </>
                           )}
@@ -647,22 +614,21 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
                     </div>
 
                     <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-                      <div className="text-right">
-                        <p className="text-xl md:text-2xl font-bold text-primary">
+                      <div className="text-right space-y-1">
+                        <p className="text-xl md:text-2xl font-semibold tabular-nums leading-tight">
                           ₹{group.totalPrice.toFixed(0)}
                         </p>
-                        {!group.allCompleted && (
-                          <Badge className={`${getStatusColor('preparing')} whitespace-nowrap`} variant="outline">
-                            In Progress
-                          </Badge>
-                        )}
-                        {group.allCompleted && (
-                          <Badge className={`${getStatusColor('completed')} whitespace-nowrap`} variant="outline">
-                            Completed
-                          </Badge>
-                        )}
+                        {(() => {
+                          // Show the status that needs attention first, same order as the kitchen display
+                          const lead = LEAD_ORDER.find(s => group.orders.some(o => asStatus(o.status) === s)) ?? 'completed';
+                          return (
+                            <Badge className={`${getStatusColor(lead)} whitespace-nowrap`} variant="outline">
+                              {getStatusLabel(lead)}
+                            </Badge>
+                          );
+                        })()}
                       </div>
-                      <div className="p-2 rounded-full bg-muted/50">
+                      <div className="h-9 w-9 flex items-center justify-center rounded-full bg-muted/50">
                         {isExpanded ? (
                           <ChevronUp className="h-5 w-5" />
                         ) : (
@@ -695,18 +661,18 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
                                   <span className="flex items-center gap-2">
                                     <span className="font-medium">{item.name}</span>
                                     {item.selectedSize && (
-                                      <Badge variant="outline" className="text-xs px-1.5 py-0 bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30">
+                                      <Badge variant="outline" className="text-xs px-1.5 py-0 font-medium text-muted-foreground">
                                         {item.selectedSize}
                                       </Badge>
                                     )}
-                                    <span className="text-muted-foreground">×{item.quantity}</span>
+                                    <span className="text-muted-foreground tabular-nums">×{item.quantity}</span>
                                   </span>
-                                  <span className="font-semibold">₹{(item.price * item.quantity).toFixed(0)}</span>
+                                  <span className="font-semibold tabular-nums">₹{(item.price * item.quantity).toFixed(0)}</span>
                                 </div>
                               ))}
-                              <div className="border-t pt-2 mt-2 flex justify-between font-bold">
+                              <div className="border-t pt-2 mt-2 flex justify-between font-semibold">
                                 <span>Total</span>
-                                <span className="text-primary">₹{group.totalPrice.toFixed(0)}</span>
+                                <span className="tabular-nums">₹{group.totalPrice.toFixed(0)}</span>
                               </div>
                             </div>
                           </div>
@@ -724,27 +690,28 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
                                 const isTerminal = ['completed', 'rejected', 'cancelled'].includes(order.status);
                                 
                                 return (
-                                  <Card 
-                                    key={order.id} 
-                                    className={`p-4 ${
-                                      isNew ? 'ring-2 ring-orange-500/50 bg-orange-500/5' : ''
+                                  <div
+                                    key={order.id}
+                                    className={`rounded-2xl p-4 ${
+                                      isNew ? 'bg-accent/60 ring-1 ring-primary/30' : 'bg-muted/25'
                                     } ${isTerminal ? 'opacity-60' : ''}`}
                                   >
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                       <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                          {isNew && <Bell className="h-4 w-4 text-orange-500 animate-bounce" />}
-                                          <span className="font-bold">#{order.order_number}</span>
+                                          {isNew && <Bell className="h-4 w-4 text-primary" aria-label="New" />}
+                                          <span className="font-display text-lg leading-none">#{order.order_number}</span>
                                           <Badge className={`${getStatusColor(order.status)} text-xs`} variant="outline">
                                             {getStatusLabel(order.status)}
                                           </Badge>
-                                          <span className="text-xs text-muted-foreground">
+                                          <span className="text-xs text-muted-foreground tabular-nums">
                                             {formatTime(order.created_at)}
                                           </span>
                                           {order.status !== 'rejected' && order.status !== 'cancelled' && (
                                             <button
+                                              type="button"
                                               onClick={() => printKot(order, locationLabel)}
-                                              className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                              className="ml-auto inline-flex items-center gap-1 rounded-lg h-8 px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                                               title="Print kitchen ticket"
                                             >
                                               <Printer className="h-3.5 w-3.5" />
@@ -755,18 +722,18 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
                                         
                                         <div className="flex flex-wrap gap-1.5">
                                           {order.items?.items?.map((item: any, idx: number) => (
-                                            <Badge 
-                                              key={idx} 
-                                              variant="secondary" 
-                                              className="text-xs font-normal"
+                                            <Badge
+                                              key={idx}
+                                              variant="outline"
+                                              className="text-xs font-normal bg-card"
                                             >
                                               {item.name}
                                               {item.selectedSize && (
-                                                <span className="ml-1 text-violet-600 dark:text-violet-400">
+                                                <span className="ml-1 text-muted-foreground">
                                                   ({item.selectedSize})
                                                 </span>
                                               )}
-                                              {item.quantity > 1 && ` ×${item.quantity}`}
+                                              {item.quantity > 1 && <span className="ml-1 font-semibold tabular-nums">×{item.quantity}</span>}
                                             </Badge>
                                           ))}
                                         </div>
@@ -774,63 +741,46 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
 
                                       {!isTerminal && (
                                         <div className="flex gap-2 flex-wrap">
+                                          {/* One forward action per order (stamp), Reject stays quiet */}
                                           {order.status === 'pending' && (
-                                            <>
-                                              <Button
-                                                size="sm"
-                                                onClick={() => updateOrderStatus(order.id, 'accepted')}
-                                                className="text-xs bg-blue-500 hover:bg-blue-600 text-white"
-                                              >
-                                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                                                Accept
-                                              </Button>
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => updateOrderStatus(order.id, 'rejected')}
-                                                className="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30"
-                                              >
-                                                <XCircle className="h-3.5 w-3.5 mr-1" />
-                                                Reject
-                                              </Button>
-                                            </>
+                                            <Button size="sm" onClick={() => updateOrderStatus(order.id, 'accepted')} className="gap-1.5">
+                                              <CheckCircle2 className="h-4 w-4" />
+                                              Accept
+                                            </Button>
                                           )}
                                           {order.status === 'accepted' && (
-                                            <>
-                                              <Button
-                                                size="sm"
-                                                onClick={() => updateOrderStatus(order.id, 'preparing')}
-                                                className="text-xs bg-orange-500 hover:bg-orange-600 text-white"
-                                              >
-                                                <ChefHat className="h-3.5 w-3.5 mr-1" />
-                                                Start Preparing
-                                              </Button>
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => updateOrderStatus(order.id, 'rejected')}
-                                                className="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30"
-                                              >
-                                                <XCircle className="h-3.5 w-3.5 mr-1" />
-                                                Reject
-                                              </Button>
-                                            </>
+                                            <Button size="sm" onClick={() => updateOrderStatus(order.id, 'preparing')} className="gap-1.5">
+                                              <ChefHat className="h-4 w-4" />
+                                              Start preparing
+                                            </Button>
                                           )}
                                           {order.status === 'preparing' && (
+                                            <Button size="sm" onClick={() => updateOrderStatus(order.id, 'completed')} className="gap-1.5">
+                                              <CheckCircle2 className="h-4 w-4" />
+                                              Mark complete
+                                            </Button>
+                                          )}
+                                          {order.status === 'ready' && (
+                                            <Button size="sm" onClick={() => updateOrderStatus(order.id, 'completed')} className="gap-1.5">
+                                              <CheckCircle2 className="h-4 w-4" />
+                                              Mark served
+                                            </Button>
+                                          )}
+                                          {(order.status === 'pending' || order.status === 'accepted') && (
                                             <Button
                                               size="sm"
                                               variant="outline"
-                                              onClick={() => updateOrderStatus(order.id, 'completed')}
-                                              className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                                              onClick={() => updateOrderStatus(order.id, 'rejected')}
+                                              className="gap-1.5 text-destructive hover:border-destructive/40"
                                             >
-                                              <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                                              Mark Complete
+                                              <XCircle className="h-4 w-4" />
+                                              Reject
                                             </Button>
                                           )}
                                         </div>
                                       )}
                                     </div>
-                                  </Card>
+                                  </div>
                                 );
                               })}
                             </div>
@@ -848,11 +798,11 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
 
       {/* Empty State */}
       {sessionGroups.length === 0 && (
-        <Card className="p-12 text-center border-0 shadow-md rounded-2xl">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted/50 flex items-center justify-center">
-            <Package className="h-8 w-8 text-muted-foreground" />
+        <Card className="p-10 md:p-12 text-center">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-accent flex items-center justify-center">
+            <Package className="h-6 w-6 text-primary" />
           </div>
-          <h3 className="text-lg font-bold mb-2">
+          <h3 className="text-lg font-semibold mb-1">
             {activeTab === 'active' && 'No active orders'}
             {activeTab === 'completed' && 'No completed orders'}
             {activeTab === 'cancelled' && 'No cancelled orders'}
@@ -861,6 +811,7 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
           <p className="text-sm text-muted-foreground">
             {activeTab === 'active' && 'Active orders will appear here when customers place them'}
             {activeTab === 'completed' && 'Completed orders will appear here'}
+            {activeTab === 'cancelled' && 'Rejected and cancelled orders will appear here'}
             {activeTab === 'all' && 'Orders will appear here when customers place them'}
           </p>
           {(searchQuery || dateFilter !== 'all') && (
@@ -873,7 +824,7 @@ const OrderManagement = ({ restaurantId, newOrderTrigger, isVisible }: OrderMana
                 setDateFilter('all');
               }}
             >
-              Clear Filters
+              Clear filters
             </Button>
           )}
         </Card>

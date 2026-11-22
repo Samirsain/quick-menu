@@ -16,15 +16,15 @@ const Contact = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
           <a 
             href="tel:+919311908389"
-            className="group p-6 rounded-xl border border-border/50 bg-card hover:border-green-500/30 hover:shadow-lg transition-all duration-300"
+            className="group p-6 rounded-xl border border-border/50 bg-card hover:border-primary/25 hover:shadow-lg transition-all duration-300"
           >
             <div className="flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-green-100 dark:bg-green-900/30 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
-                <Phone className="h-6 w-6 text-green-600" />
+              <div className="p-3 rounded-xl bg-accent group-hover:bg-accent/70 transition-colors">
+                <Phone className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold text-lg">Phone</h3>
-                <p className="text-green-600 font-medium">+91 93119 08389</p>
+                <p className="text-accent-foreground font-medium">+91 93119 08389</p>
                 <p className="text-sm text-muted-foreground mt-1">Immediate during business hours</p>
               </div>
             </div>
@@ -34,15 +34,15 @@ const Contact = () => {
             href="https://wa.me/919311908389"
             target="_blank"
             rel="noopener noreferrer"
-            className="group p-6 rounded-xl border border-border/50 bg-card hover:border-green-500/30 hover:shadow-lg transition-all duration-300"
+            className="group p-6 rounded-xl border border-border/50 bg-card hover:border-primary/25 hover:shadow-lg transition-all duration-300"
           >
             <div className="flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-green-100 dark:bg-green-900/30 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
-                <MessageCircle className="h-6 w-6 text-green-600" />
+              <div className="p-3 rounded-xl bg-accent group-hover:bg-accent/70 transition-colors">
+                <MessageCircle className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold text-lg">WhatsApp</h3>
-                <p className="text-green-600 font-medium">+91 93119 08389</p>
+                <p className="text-accent-foreground font-medium">+91 93119 08389</p>
                 <p className="text-sm text-muted-foreground mt-1">Response within a few hours</p>
               </div>
             </div>
@@ -50,15 +50,15 @@ const Contact = () => {
 
           <a
             href="mailto:hii@samirsain.com"
-            className="group p-6 rounded-xl border border-border/50 bg-card hover:border-blue-500/30 hover:shadow-lg transition-all duration-300"
+            className="group p-6 rounded-xl border border-border/50 bg-card hover:border-primary/25 hover:shadow-lg transition-all duration-300"
           >
             <div className="flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
-                <Mail className="h-6 w-6 text-blue-600" />
+              <div className="p-3 rounded-xl bg-accent group-hover:bg-accent/70 transition-colors">
+                <Mail className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold text-lg">Email</h3>
-                <p className="text-blue-600 font-medium">hii@samirsain.com</p>
+                <p className="text-primary font-medium">hii@samirsain.com</p>
                 <p className="text-sm text-muted-foreground mt-1">Response within 24 hours</p>
               </div>
             </div>

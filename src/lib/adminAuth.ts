@@ -3,27 +3,20 @@ import { supabase } from "@/integrations/supabase/client";
 export interface AdminSession {
   email: string;
   loginTime: number;
-  sessionToken: string; // Add session token for additional security
+  sessionToken: string; // issued by admin_login; every admin RPC checks it server-side
 }
 
 const ADMIN_SESSION_KEY = "admin_session";
-const SESSION_TIMEOUT = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
-
-// Generate a secure session token
-function generateSessionToken(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-}
+const SESSION_TIMEOUT = 2 * 60 * 60 * 1000; // 2 hours, same as the server-side session
 
 export async function authenticateAdmin(
   email: string,
   password: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Call the RPC function to verify password
-    const { data, error } = await supabase.rpc("verify_admin_password", {
-      p_email: email,
+    // The server checks the password and returns a session token (null = wrong email/password)
+    const { data: token, error } = await supabase.rpc("admin_login", {
+      p_email: email.trim().toLowerCase(),
       p_password: password,
     });
 
@@ -32,23 +25,9 @@ export async function authenticateAdmin(
       return { success: false, error: "Authentication failed" };
     }
 
-    if (data === true) {
-      // Create session with secure token
-      const session: AdminSession = {
-        email,
-        loginTime: Date.now(),
-        sessionToken: generateSessionToken(),
-      };
-      // Use sessionStorage instead of localStorage for better security
+    if (token) {
+      const session: AdminSession = { email: email.trim().toLowerCase(), loginTime: Date.now(), sessionToken: token };
       sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
-
-      // Log the login action
-      await supabase.from("admin_actions_log").insert({
-        admin_email: email,
-        action_type: "login",
-        details: { timestamp: new Date().toISOString() },
-      });
-
       return { success: true };
     }
 
@@ -86,7 +65,17 @@ export function getAdminSession(): AdminSession | null {
 }
 
 export function clearAdminSession(): void {
+  const token = getStoredToken();
   sessionStorage.removeItem(ADMIN_SESSION_KEY);
+  if (token) supabase.rpc("admin_logout", { p_token: token }).then(() => {}); // fire and forget: kill it server-side too
+}
+
+function getStoredToken(): string | null {
+  try {
+    return JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || "null")?.sessionToken ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export function isAdminAuthenticated(): boolean {
@@ -110,15 +99,7 @@ export async function changeAdminPassword(
       return { success: false, error: "Failed to change password" };
     }
 
-    if (data === true) {
-      // Log the password change
-      await supabase.from("admin_actions_log").insert({
-        admin_email: email,
-        action_type: "password_changed",
-        details: { timestamp: new Date().toISOString() },
-      });
-      return { success: true };
-    }
+    if (data === true) return { success: true }; // the server logs the change
 
     return { success: false, error: "Current password is incorrect" };
   } catch (error) {

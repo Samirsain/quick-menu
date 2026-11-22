@@ -75,5 +75,3 @@ tmp/
 # package-lock.json
 # yarn.lock
 
-# Cloudflare wrangler temp files
-.wrangler/

@@ -276,7 +276,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
       // Update local state only after confirmed DB save
       setQrMode(newMode);
       setTableConfig(newConfig);
-      toast({ title: "✅ Saved", description: "Configuration saved to database" });
+      toast({ title: "Saved", description: "Your QR settings are saved" });
     } catch (err: any) {
       console.error('Save config error:', err);
       toast({ title: "Save Failed", description: err.message, variant: "destructive" });
@@ -442,7 +442,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
   // QR Customization panel
   const CustomizePanel = () => (
     <div className="space-y-4">
-      <Card className="border-0 shadow-md rounded-2xl overflow-hidden">
+      <Card className="overflow-hidden">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-sm flex items-center gap-2"><Palette className="w-4 h-4 text-primary" />QR Style</h3>
@@ -454,7 +454,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
               return (
                 <motion.button key={style.id} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
                   onClick={() => setConfig(prev => ({ ...prev, style: style.dotStyle }))}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${config.style === style.dotStyle ? 'border-primary bg-primary/8 shadow-sm' : 'border-zinc-200 dark:border-zinc-700 hover:border-primary/40'}`}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${config.style === style.dotStyle ? 'border-primary bg-primary/8 shadow-sm' : 'border-border hover:border-primary/40'}`}
                 >
                   <Icon className={`h-5 w-5 ${config.style === style.dotStyle ? 'text-primary' : 'text-muted-foreground'}`} />
                   <span className={`text-xs font-medium ${config.style === style.dotStyle ? 'text-primary' : ''}`}>{style.name}</span>
@@ -464,7 +464,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
           </div>
         </CardContent>
       </Card>
-      <Card className="border-0 shadow-md rounded-2xl overflow-hidden">
+      <Card className="overflow-hidden">
         <CardContent className="p-5">
           <h3 className="font-semibold text-sm mb-3">Color Theme</h3>
           <div className="grid grid-cols-4 gap-2">
@@ -474,7 +474,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
               return (
                 <motion.button key={preset.id} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
                   onClick={() => setConfig(prev => ({ ...prev, fgColor: preset.fg, bgColor: preset.bg }))}
-                  className={`h-10 rounded-xl border-2 transition-all ${config.fgColor === preset.fg ? 'border-primary ring-2 ring-primary/30 shadow-md' : 'border-transparent hover:border-zinc-300'}`}
+                  className={`h-10 rounded-xl border-2 transition-all ${config.fgColor === preset.fg ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-primary/40'}`}
                   style={{ background: bg }} title={preset.name}
                 />
               );
@@ -482,7 +482,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
           </div>
         </CardContent>
       </Card>
-      <Card className="border-0 shadow-md rounded-2xl overflow-hidden">
+      <Card className="overflow-hidden">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
             <Label className="text-sm font-semibold">Dot Size</Label>
@@ -491,7 +491,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
           <Slider value={[config.dotScale]} onValueChange={([v]) => setConfig(prev => ({ ...prev, dotScale: v }))} min={0.5} max={1} step={0.05} className="w-full" />
         </CardContent>
       </Card>
-      <Card className="border-0 shadow-md rounded-2xl overflow-hidden">
+      <Card className="overflow-hidden">
         <CardContent className="p-5">
           <h3 className="font-semibold text-sm mb-3">Frame Style</h3>
           <div className="grid grid-cols-4 gap-2">
@@ -544,7 +544,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">QR Code Manager</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">QR codes</h2>
           <p className="text-sm text-muted-foreground mt-1">Single QR for all or unique QR per {locationLabel.toLowerCase()}</p>
         </div>
         <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -564,7 +564,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
             <motion.button key={mode} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
               onClick={() => { if (mode !== qrMode) { handleSwitchMode(mode); } else { setActiveTab(mode); } }}
               className={`relative flex flex-col items-start gap-2 p-4 rounded-2xl border-2 transition-all text-left shadow-sm ${
-                isViewing ? 'border-primary bg-primary/5 shadow-md' : 'border-zinc-200 dark:border-zinc-700 hover:border-primary/40 hover:shadow-md'
+                isViewing ? 'border-primary bg-accent/40' : 'border-border hover:border-primary/40'
               }`}
             >
               <div className={`p-2.5 rounded-xl ${isViewing ? 'bg-primary/15' : 'bg-muted'}`}>
@@ -576,7 +576,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
               </div>
               {isActive && (
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-3 right-3">
-                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-xs rounded-full" variant="outline">Active</Badge>
+                  <Badge className="bg-emerald-600/10 text-emerald-800 dark:text-emerald-300 border-transparent text-xs rounded-full" variant="outline">Active</Badge>
                 </motion.div>
               )}
             </motion.button>
@@ -589,11 +589,11 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
         <div>
             <div className="grid lg:grid-cols-5 gap-6">
               {/* Preview */}
-              <Card className="lg:col-span-3 border-0 shadow-xl rounded-2xl overflow-hidden">
+              <Card className="lg:col-span-3 overflow-hidden">
                 <CardContent className="p-0">
-                  <div className="bg-gradient-to-br from-primary/5 via-background to-primary/10 p-6 md:p-8">
+                  <div className="bg-muted/30 p-6 md:p-8">
                     <div className="max-w-xs mx-auto">
-                      <div className="relative bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-xl border border-zinc-100 dark:border-zinc-800">
+                      <div className="relative bg-card rounded-2xl p-6 shadow-[var(--shadow-medium)] border border-border">
                         <FrameCorners />
                         <canvas ref={singleCanvasRef} className="w-full aspect-square rounded-xl" style={{ imageRendering: "crisp-edges" }} />
                         <div className="mt-3 text-center">
@@ -630,7 +630,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
                     </motion.div>
                   ) : (
                     <motion.div key="info" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }} className="space-y-4">
-                      <Card className="border-0 shadow-md rounded-2xl">
+                      <Card className="">
                         <CardContent className="p-5">
                           <h3 className="font-semibold text-sm mb-3 flex items-center gap-2"><QrIcon className="w-4 h-4 text-primary" />Scan URL</h3>
                           <div className="flex gap-2">
@@ -646,7 +646,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
                           <p className="text-xs text-muted-foreground mt-2">Each scan starts a 4-hour menu session</p>
                         </CardContent>
                       </Card>
-                      <Card className="border-0 shadow-md rounded-2xl">
+                      <Card className="">
                         <CardContent className="p-5">
                           <h3 className="font-semibold text-sm mb-3">Quick Tips</h3>
                           <ul className="space-y-1.5 text-sm text-muted-foreground">
@@ -670,7 +670,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
           <div className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               {/* Config Panel */}
-              <Card className="border-0 shadow-xl rounded-2xl overflow-hidden">
+              <Card className="overflow-hidden">
                 <CardContent className="p-6 space-y-5">
                   <h3 className="font-bold flex items-center gap-2 text-base">
                     <Table2 className="h-5 w-5 text-primary" />{locationLabel} Configuration
@@ -717,12 +717,12 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
                             <button
                               key={num}
                               onClick={() => handleUnskip(num)}
-                              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all group cursor-pointer"
+                              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-muted border border-border hover:border-primary/40 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all group cursor-pointer"
                             >
-                              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                              <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                                 {locationLabel} {num}
                               </span>
-                              <Unlock className="h-3.5 w-3.5 text-zinc-400 group-hover:text-emerald-500 transition-colors" />
+                              <Unlock className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
                             </button>
                           ))}
                         </div>
@@ -750,7 +750,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
               </Card>
 
               {/* QR Preview */}
-              <Card className="border-0 shadow-xl rounded-2xl overflow-hidden">
+              <Card className="overflow-hidden">
                 <CardContent className="p-6 space-y-4">
                   <h3 className="font-bold flex items-center gap-2 text-base">
                     <QrIcon className="h-5 w-5 text-primary" />
@@ -764,7 +764,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
 
                   {selectedTable ? (
                     <div>
-                      <div className="relative bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-xl border border-zinc-100 dark:border-zinc-800">
+                      <div className="relative bg-card rounded-2xl p-6 shadow-[var(--shadow-medium)] border border-border">
                         <FrameCorners />
                         <canvas ref={perTableCanvasRef} className="w-full aspect-square rounded-xl" style={{ imageRendering: "crisp-edges" }} />
                         <div className="mt-3 text-center">
@@ -776,7 +776,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
                       {tableConfig.disabled.includes(selectedTable) && (
                         <div className="mt-2 p-2.5 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 flex items-center gap-2">
                           <PauseCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                          <p className="text-xs text-amber-700 dark:text-amber-400">QR is stopped — customers cannot scan this</p>
+                          <p className="text-xs text-amber-700 dark:text-amber-400">QR is stopped. Customers can't scan it.</p>
                         </div>
                       )}
                     </div>
@@ -797,11 +797,11 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
                         Copy URL
                       </Button>
                       {tableConfig.disabled.includes(selectedTable) ? (
-                        <Button size="sm" onClick={() => setConfirmEnable(selectedTable)} className="gap-1.5 rounded-xl col-span-2 bg-emerald-500 hover:bg-emerald-600 text-white">
+                        <Button size="sm" onClick={() => setConfirmEnable(selectedTable)} className="gap-1.5 rounded-xl col-span-2 ">
                           <PlayCircle className="h-3.5 w-3.5" />Re-enable QR
                         </Button>
                       ) : (
-                        <Button variant="outline" size="sm" onClick={() => { setConfirmDisable(selectedTable); setConfirmText(""); }} className="gap-1.5 rounded-xl col-span-2 text-amber-700 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700">
+                        <Button variant="outline" size="sm" onClick={() => { setConfirmDisable(selectedTable); setConfirmText(""); }} className="gap-1.5 rounded-xl col-span-2 text-destructive hover:border-destructive/40">
                           <PauseCircle className="h-3.5 w-3.5" />Stop QR Temporarily
                         </Button>
                       )}
@@ -812,7 +812,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
             </div>
 
             {/* Table Grid */}
-            <Card className="border-0 shadow-xl rounded-2xl overflow-hidden">
+            <Card className="overflow-hidden">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="font-bold flex items-center gap-2">
@@ -838,9 +838,9 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
                       <motion.button key={num} whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.94 }}
                         onClick={() => setSelectedTable(num === selectedTable ? null : num)}
                         className={`relative flex flex-col items-center gap-1 p-2.5 rounded-2xl border-2 transition-all text-center shadow-sm ${
-                          isSelected ? 'border-primary bg-primary/10 shadow-md' :
+                          isSelected ? 'border-primary bg-accent/50' :
                           isDisabled ? 'border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-950/20' :
-                          'border-zinc-200 dark:border-zinc-700 hover:border-primary/50 hover:shadow-md'
+                          'border-border hover:border-primary/50'
                         }`}
                       >
                         {isDisabled ? (
@@ -932,7 +932,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl" onClick={() => { setConfirmDisable(null); setConfirmText(""); }}>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="rounded-xl bg-amber-500 hover:bg-amber-600" onClick={() => confirmDisable && handleDisableQR(confirmDisable)} disabled={savingConfig || confirmText.toUpperCase() !== "CONFIRM"}>
+            <AlertDialogAction className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={() => confirmDisable && handleDisableQR(confirmDisable)} disabled={savingConfig || confirmText.toUpperCase() !== "CONFIRM"}>
               {savingConfig ? "Stopping..." : "Stop QR"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -953,7 +953,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl" onClick={() => setConfirmEnable(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="rounded-xl bg-emerald-500 hover:bg-emerald-600" onClick={() => confirmEnable && handleEnableQR(confirmEnable)} disabled={savingConfig}>
+            <AlertDialogAction className="rounded-xl" onClick={() => confirmEnable && handleEnableQR(confirmEnable)} disabled={savingConfig}>
               {savingConfig ? "Enabling..." : "Re-enable QR"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -980,7 +980,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl" onClick={() => { setConfirmSkipNum(null); setConfirmText(""); }}>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white" onClick={confirmSkipNumber} disabled={savingConfig || confirmText.toUpperCase() !== "CONFIRM"}>
+            <AlertDialogAction className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={confirmSkipNumber} disabled={savingConfig || confirmText.toUpperCase() !== "CONFIRM"}>
               {savingConfig ? "Skipping..." : `Skip ${locationLabel} ${confirmSkipNum}`}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1001,7 +1001,7 @@ const QRCodeDisplay = ({ restaurantId }: QRCodeDisplayProps) => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl" onClick={() => setConfirmUnskipNum(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white" onClick={confirmUnskipNumber} disabled={savingConfig}>
+            <AlertDialogAction className="rounded-xl" onClick={confirmUnskipNumber} disabled={savingConfig}>
               {savingConfig ? "Restoring..." : `Restore ${locationLabel} ${confirmUnskipNum}`}
             </AlertDialogAction>
           </AlertDialogFooter>

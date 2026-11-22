@@ -1,0 +1,418 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-20T11:23:19.131Z",
+  "title": "Design System: QuickMenu",
+  "extensions": {
+    "colorMeta": {
+      "ticket-stamp": {
+        "role": "primary",
+        "displayName": "Ticket Stamp",
+        "canonical": "oklch(55.0% 0.133 41.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.070 41.4)",
+          "oklch(26.4% 0.113 41.4)",
+          "oklch(37.9% 0.133 41.4)",
+          "oklch(49.3% 0.133 41.4)",
+          "oklch(60.7% 0.133 41.4)",
+          "oklch(72.1% 0.118 41.4)",
+          "oklch(83.6% 0.076 41.4)",
+          "oklch(95.0% 0.024 41.4)"
+        ]
+      },
+      "stamp-deep": {
+        "role": "primary",
+        "displayName": "Stamp Deep",
+        "canonical": "oklch(45.2% 0.117 39.1)",
+        "tonalRamp": [
+          "oklch(15.0% 0.061 39.1)",
+          "oklch(26.4% 0.099 39.1)",
+          "oklch(37.9% 0.117 39.1)",
+          "oklch(49.3% 0.117 39.1)",
+          "oklch(60.7% 0.117 39.1)",
+          "oklch(72.1% 0.103 39.1)",
+          "oklch(83.6% 0.066 39.1)",
+          "oklch(95.0% 0.021 39.1)"
+        ]
+      },
+      "stamp-wash": {
+        "role": "primary",
+        "displayName": "Stamp Wash",
+        "canonical": "oklch(92.3% 0.026 62.0)",
+        "tonalRamp": [
+          "oklch(15.0% 0.014 62.0)",
+          "oklch(26.4% 0.022 62.0)",
+          "oklch(37.9% 0.026 62.0)",
+          "oklch(49.3% 0.026 62.0)",
+          "oklch(60.7% 0.026 62.0)",
+          "oklch(72.1% 0.023 62.0)",
+          "oklch(83.6% 0.015 62.0)",
+          "oklch(95.0% 0.005 62.0)"
+        ]
+      },
+      "slip-paper": {
+        "role": "neutral",
+        "displayName": "Slip Paper",
+        "canonical": "oklch(95.4% 0.014 78.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.007 78.3)",
+          "oklch(26.4% 0.012 78.3)",
+          "oklch(37.9% 0.014 78.3)",
+          "oklch(49.3% 0.014 78.3)",
+          "oklch(60.7% 0.014 78.3)",
+          "oklch(72.1% 0.012 78.3)",
+          "oklch(83.6% 0.008 78.3)",
+          "oklch(95.0% 0.002 78.3)"
+        ]
+      },
+      "slip-card": {
+        "role": "neutral",
+        "displayName": "Slip Card",
+        "canonical": "oklch(98.1% 0.009 78.3)",
+        "tonalRamp": [
+          "oklch(15.0% 0.005 78.3)",
+          "oklch(26.4% 0.008 78.3)",
+          "oklch(37.9% 0.009 78.3)",
+          "oklch(49.3% 0.009 78.3)",
+          "oklch(60.7% 0.009 78.3)",
+          "oklch(72.1% 0.008 78.3)",
+          "oklch(83.6% 0.005 78.3)",
+          "oklch(95.0% 0.002 78.3)"
+        ]
+      },
+      "carbon-ink": {
+        "role": "neutral",
+        "displayName": "Carbon Ink",
+        "canonical": "oklch(24.5% 0.027 53.8)",
+        "tonalRamp": [
+          "oklch(15.0% 0.014 53.8)",
+          "oklch(26.4% 0.023 53.8)",
+          "oklch(37.9% 0.027 53.8)",
+          "oklch(49.3% 0.027 53.8)",
+          "oklch(60.7% 0.027 53.8)",
+          "oklch(72.1% 0.024 53.8)",
+          "oklch(83.6% 0.016 53.8)",
+          "oklch(95.0% 0.005 53.8)"
+        ]
+      },
+      "pencil": {
+        "role": "neutral",
+        "displayName": "Pencil",
+        "canonical": "oklch(51.9% 0.031 60.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.016 61.6)",
+          "oklch(26.4% 0.026 61.6)",
+          "oklch(37.9% 0.030 61.6)",
+          "oklch(49.3% 0.030 61.6)",
+          "oklch(60.7% 0.030 61.6)",
+          "oklch(72.1% 0.027 61.6)",
+          "oklch(83.6% 0.017 61.6)",
+          "oklch(95.0% 0.005 61.6)"
+        ]
+      },
+      "perforation": {
+        "role": "neutral",
+        "displayName": "Perforation",
+        "canonical": "oklch(90.3% 0.022 74.1)",
+        "tonalRamp": [
+          "oklch(15.0% 0.012 74.1)",
+          "oklch(26.4% 0.019 74.1)",
+          "oklch(37.9% 0.022 74.1)",
+          "oklch(49.3% 0.022 74.1)",
+          "oklch(60.7% 0.022 74.1)",
+          "oklch(72.1% 0.020 74.1)",
+          "oklch(83.6% 0.013 74.1)",
+          "oklch(95.0% 0.004 74.1)"
+        ]
+      },
+      "hero-shade": {
+        "role": "neutral",
+        "displayName": "Hero Shade",
+        "canonical": "oklch(18.2% 0.017 53.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.009 53.4)",
+          "oklch(26.4% 0.014 53.4)",
+          "oklch(37.9% 0.017 53.4)",
+          "oklch(49.3% 0.017 53.4)",
+          "oklch(60.7% 0.017 53.4)",
+          "oklch(72.1% 0.015 53.4)",
+          "oklch(83.6% 0.010 53.4)",
+          "oklch(95.0% 0.003 53.4)"
+        ]
+      },
+      "label-cream": {
+        "role": "neutral",
+        "displayName": "Label Cream",
+        "canonical": "oklch(97.0% 0.015 77.1)",
+        "tonalRamp": [
+          "oklch(15.0% 0.008 77.1)",
+          "oklch(26.4% 0.013 77.1)",
+          "oklch(37.9% 0.015 77.1)",
+          "oklch(49.3% 0.015 77.1)",
+          "oklch(60.7% 0.015 77.1)",
+          "oklch(72.1% 0.013 77.1)",
+          "oklch(83.6% 0.009 77.1)",
+          "oklch(95.0% 0.003 77.1)"
+        ]
+      },
+      "veg-green": {
+        "role": "semantic",
+        "displayName": "Veg Green",
+        "canonical": "oklch(62.7% 0.170 149.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.089 149.2)",
+          "oklch(26.4% 0.144 149.2)",
+          "oklch(37.9% 0.170 149.2)",
+          "oklch(49.3% 0.170 149.2)",
+          "oklch(60.7% 0.170 149.2)",
+          "oklch(72.1% 0.150 149.2)",
+          "oklch(83.6% 0.096 149.2)",
+          "oklch(95.0% 0.031 149.2)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Landing hero only. 56px mobile, 88px from sm, 112px from lg."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Restaurant names, menu categories, landing step titles, kitchen order numbers."
+      },
+      "body-lead": {
+        "displayName": "Body Lead",
+        "purpose": "The one intro paragraph under a display headline. 17px rising to 20px."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Descriptions, list items, kitchen ticket item lines."
+      },
+      "label-strong": {
+        "displayName": "Label Strong",
+        "purpose": "Button labels and prices."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Meta lines, chips, counts. Badges drop to 11px semibold."
+      },
+      "eyebrow": {
+        "displayName": "Eyebrow",
+        "purpose": "Uppercase, Ticket Stamp. Once per marketing page, never in app screens."
+      }
+    },
+    "shadows": [
+      {
+        "name": "stamp-lift",
+        "value": "0 14px 30px -14px rgba(138,58,30,0.7)",
+        "purpose": "Under the primary button."
+      },
+      {
+        "name": "stamp-lift-hero",
+        "value": "0 18px 40px -16px rgba(138,58,30,0.75)",
+        "purpose": "Under the landing Get started button."
+      },
+      {
+        "name": "pill-glow",
+        "value": "0 8px 20px -8px rgba(176,82,44,0.8)",
+        "purpose": "Under the active category pill."
+      },
+      {
+        "name": "panel-rest",
+        "value": "0 24px 60px -30px rgba(43,29,20,0.35)",
+        "purpose": "Sticky desktop cart panel."
+      },
+      {
+        "name": "media-lift",
+        "value": "0 40px 100px -40px rgba(43,29,20,0.55)",
+        "purpose": "Landing demo video frame."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-slip",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Default easing for entrances, reveals and state changes."
+      },
+      {
+        "name": "rise",
+        "value": "opacity 0 to 1, translateY 24px to 0, 800ms ease-slip, staggered 80ms",
+        "purpose": "Page-load entrance on marketing and menu headers."
+      },
+      {
+        "name": "reveal",
+        "value": "opacity 0 to 1, translateY 24px to 0, 700ms ease-slip, once in view",
+        "purpose": "Scroll reveal for landing cards and menu sections."
+      },
+      {
+        "name": "press",
+        "value": "transform: scale(0.99) on :active",
+        "purpose": "Tactile feedback on buttons and the cart bar."
+      },
+      {
+        "name": "pill-travel",
+        "value": "shared layout animation (Framer Motion layoutId)",
+        "purpose": "Active category fill travels between chips instead of blinking."
+      },
+      {
+        "name": "tint",
+        "value": "color, border-color 300ms",
+        "purpose": "Hover and focus colour shifts on chips, fields and secondary buttons."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      },
+      {
+        "name": "container-max",
+        "value": "1400px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one Ticket Stamp action per screen: Add, Place order, Accept.",
+      "html": "<button class=\"ds-btn-primary\">Place order<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg></button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 24px; border: 0; border-radius: 16px; background: linear-gradient(to right, rgb(var(--menu-accent, 176 82 44)), rgb(var(--menu-accent-2, 138 58 30))); color: #FBF4EA; font: 600 15px/1.25 Inter, ui-sans-serif, system-ui, sans-serif; box-shadow: 0 14px 30px -14px rgba(138,58,30,0.7); cursor: pointer; transition: filter 0.2s, transform 0.15s; } .ds-btn-primary:hover { filter: brightness(1.05); } .ds-btn-primary:active { transform: scale(0.99); } .ds-btn-primary:focus-visible { outline: 2px solid rgb(var(--menu-accent-2, 138 58 30)); outline-offset: 3px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Everything that is not the one primary action.",
+      "html": "<button class=\"ds-btn-secondary\">View all dishes</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; height: 44px; padding: 0 20px; border-radius: 16px; border: 1px solid rgb(var(--menu-line, 232 221 207)); background: rgb(var(--menu-card, 252 248 242)); color: rgb(var(--menu-ink, 43 29 20)); font: 500 14px/1.25 Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: border-color 0.3s, transform 0.15s; } .ds-btn-secondary:hover { border-color: rgb(var(--menu-accent, 176 82 44) / 0.45); } .ds-btn-secondary:active { transform: scale(0.99); } .ds-btn-secondary:focus-visible { outline: 2px solid rgb(var(--menu-accent-2, 138 58 30)); outline-offset: 3px; }"
+    },
+    {
+      "name": "Category Chip",
+      "kind": "chip",
+      "refersTo": "chip-category",
+      "description": "Idle menu category pill in the sticky top bar.",
+      "html": "<button class=\"ds-chip\">Starters</button>",
+      "css": ".ds-chip { height: 40px; padding: 0 20px; border-radius: 9999px; border: 1px solid rgb(var(--menu-line, 232 221 207)); background: rgb(var(--menu-card, 252 248 242)); color: rgb(var(--menu-ink, 43 29 20)); font: 500 14px/1 Inter, ui-sans-serif, system-ui, sans-serif; white-space: nowrap; cursor: pointer; transition: color 0.3s, border-color 0.3s; } .ds-chip:hover { border-color: rgb(var(--menu-accent, 176 82 44) / 0.4); } .ds-chip:focus-visible { outline: 2px solid rgb(var(--menu-accent-2, 138 58 30)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Category Chip (active)",
+      "kind": "chip",
+      "refersTo": "chip-category-active",
+      "description": "Selected category: stamp gradient fill with Pill Glow.",
+      "html": "<button class=\"ds-chip-active\" aria-pressed=\"true\">Mains</button>",
+      "css": ".ds-chip-active { height: 40px; padding: 0 20px; border: 0; border-radius: 9999px; background: linear-gradient(to bottom, rgb(var(--menu-accent, 176 82 44)), rgb(var(--menu-accent-2, 138 58 30))); color: #FBF4EA; font: 500 14px/1 Inter, ui-sans-serif, system-ui, sans-serif; white-space: nowrap; box-shadow: 0 8px 20px -8px rgba(176,82,44,0.8); cursor: pointer; } .ds-chip-active:focus-visible { outline: 2px solid rgb(var(--menu-accent-2, 138 58 30)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Pill search in the guest top bar.",
+      "html": "<label class=\"ds-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input type=\"search\" placeholder=\"Search dishes\" aria-label=\"Search dishes\"></label>",
+      "css": ".ds-search { position: relative; display: block; width: 280px; } .ds-search svg { position: absolute; left: 14px; top: 12px; color: rgb(var(--menu-muted, 125 108 94)); } .ds-search input { width: 100%; height: 40px; padding: 0 16px 0 40px; border-radius: 9999px; border: 1px solid rgb(var(--menu-line, 232 221 207)); background: rgb(var(--menu-card, 252 248 242)); color: rgb(var(--menu-ink, 43 29 20)); font: 400 15px/1 Inter, ui-sans-serif, system-ui, sans-serif; outline: none; transition: border-color 0.3s; } .ds-search input::placeholder { color: rgb(var(--menu-muted, 125 108 94)); } .ds-search input:focus-visible { border-color: rgb(var(--menu-accent, 176 82 44) / 0.6); }"
+    },
+    {
+      "name": "Quantity Stepper",
+      "kind": "custom",
+      "refersTo": "stepper",
+      "description": "Stamp Wash pill for changing a dish quantity. Count in Stamp Deep for contrast.",
+      "html": "<div class=\"ds-stepper\" role=\"group\" aria-label=\"Quantity\"><button aria-label=\"Remove one\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/></svg></button><span>2</span><button aria-label=\"Add one\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg></button></div>",
+      "css": ".ds-stepper { display: inline-flex; align-items: center; gap: 4px; height: 44px; padding: 0 6px; border-radius: 9999px; background: rgb(var(--menu-tint, 243 226 212)); color: rgb(var(--menu-accent-2, 138 58 30)); font: 600 14px/1 Inter, ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; } .ds-stepper span { min-width: 20px; text-align: center; } .ds-stepper button { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 0; border-radius: 9999px; background: transparent; color: inherit; cursor: pointer; transition: transform 0.15s; } .ds-stepper button:active { transform: scale(0.94); } .ds-stepper button:focus-visible { outline: 2px solid rgb(var(--menu-accent-2, 138 58 30)); outline-offset: 1px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat Slip Card on Slip Paper with a Perforation hairline. No shadow at rest.",
+      "html": "<div class=\"ds-card\"><span class=\"ds-card-icon\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M10.268 21a2 2 0 0 0 3.464 0\"/><path d=\"M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326\"/></svg></span><h3>Order</h3><p>Orders land on the kitchen screen instantly, with a bell.</p></div>",
+      "css": ".ds-card { width: 300px; padding: 24px; border-radius: 20px; border: 1px solid rgb(var(--menu-line, 232 221 207) / 0.7); background: rgb(var(--menu-card, 252 248 242)); color: rgb(var(--menu-ink, 43 29 20)); } .ds-card-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 9999px; background: rgb(var(--menu-tint, 243 226 212)); color: rgb(var(--menu-accent, 176 82 44)); } .ds-card h3 { margin: 16px 0 0; font: 400 24px/1.25 Fraunces, Georgia, serif; } .ds-card p { margin: 6px 0 0; font: 400 15px/1.625 Inter, ui-sans-serif, system-ui, sans-serif; color: rgb(var(--menu-muted, 125 108 94)); }"
+    },
+    {
+      "name": "Kitchen Ticket",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Signature kitchen display order card on the night board: Fraunces number, table pill, status and timer badges.",
+      "html": "<div class=\"ds-ticket\"><div class=\"ds-ticket-head\"><p class=\"ds-ticket-no\">#047</p><span class=\"ds-ticket-table\">Table 6</span></div><div class=\"ds-ticket-badges\"><span class=\"ds-badge ds-badge-new\">NEW</span><span class=\"ds-badge ds-badge-wait\">14 min</span></div><ul><li>2 x Paneer Tikka</li><li>1 x Dal Makhani</li><li>3 x Butter Naan</li></ul></div>",
+      "css": ".ds-ticket { width: 280px; padding: 20px; border-radius: 20px; border: 1px solid rgb(54 44 35); background: rgb(33 26 21); color: rgb(243 235 224); } .ds-ticket-head { display: flex; align-items: center; justify-content: space-between; } .ds-ticket-no { margin: 0; font: 400 26px/1 Fraunces, Georgia, serif; } .ds-ticket-table { display: flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 9999px; background: rgb(255 255 255 / 0.07); font: 500 13px/1 Inter, ui-sans-serif, system-ui, sans-serif; } .ds-ticket-badges { display: flex; gap: 6px; margin-top: 12px; } .ds-badge { display: flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 9999px; font: 600 11px/1 Inter, ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; } .ds-badge-new { background: rgb(176 82 44); color: #FBF4EA; } .ds-badge-wait { background: rgb(245 158 11 / 0.15); color: #FBBF24; } .ds-ticket ul { margin: 14px 0 0; padding: 0; list-style: none; font: 400 15px/1.45 Inter, ui-sans-serif, system-ui, sans-serif; } .ds-ticket li + li { margin-top: 4px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Order Slip",
+    "overview": "QuickMenu should look and read like a good kitchen ticket: warm paper, one dark ink, and one terracotta stamp that marks what matters. The slip is homely because it comes from the restaurant, not a software vendor. It is exact because a ticket that's misread costs a table its dinner. And it is crisp because a restaurant owner should trust it the way they trust their billing machine.\n\nDensity follows the reader. Guests get an unhurried menu with large Fraunces category names, generous card padding and photos. Staff get the same paper and ink packed tighter. Order numbers, tables and timers have to be read in a glance across a counter. Depth is mostly flat: hairline perforation lines separate things, and a warm tinted shadow appears only under the primary action or the hero media.\n\nThe guest side (`/`, `/menu/:id`, the service-call button and the UPI card) and the staff dashboard (`/dashboard`) both run on the Order Slip. The shadcn semantic variables (`--primary`, `--background`, `--card` and the rest) are aliases of the `--menu-*` palette in `src/index.css`, so every shared component inherits it. Still off-system: the kitchen display hard-codes near-variants, and `/auth`, `/admindashboard`, About, Contact and the policy pages carry raw Tailwind palette classes (`orange-500`, `gray-*`) on top of the remapped tokens. Those are drift to clear, not a second system.",
+    "keyCharacteristics": [
+      "Warm paper backgrounds with one dark warm-brown ink. No cool greys, no pure black.",
+      "One accent, the Ticket Stamp terracotta, used as a fill for the single most important action.",
+      "Fraunces for names and numbers people look for (restaurants, categories, order numbers). Inter for everything people operate.",
+      "Soft, consistent corners: pills for anything you tap repeatedly, 16px buttons, 20px cards.",
+      "Flat by default. A tinted shadow is reserved for the one thing that should be pressed.",
+      "A full night palette in the same warm family, never a neutral dark theme."
+    ],
+    "rules": [
+      {
+        "name": "The One Stamp Rule",
+        "body": "Each screen gets one Ticket Stamp fill, for the action that moves the order forward: \"Add\", \"Place order\", \"Accept\" or \"Get started\". Everything else is Slip Card with a Perforation border.",
+        "section": "colors"
+      },
+      {
+        "name": "The Warm Ink Rule",
+        "body": "Every neutral comes from the paper-and-ink family. A cool grey (`neutral-*`, `gray-*`, `zinc-*`) or a pure `#000` on any screen counts as drift.",
+        "section": "colors"
+      },
+      {
+        "name": "The Meaning-Only Rule",
+        "body": "Green, amber and red appear only when they report real state: veg, ready, waiting, late or error. They are never used for decoration, brand or emphasis.",
+        "section": "colors"
+      },
+      {
+        "name": "The Names-in-Fraunces Rule",
+        "body": "Fraunces is for things a person scans for by name or number: a restaurant, a category, an order. It is never used for buttons, form labels, tables or body text.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Eyebrow Rule",
+        "body": "The uppercase tracked label appears at most once per page, and only on marketing pages. App screens don't use it.",
+        "section": "typography"
+      },
+      {
+        "name": "The Pressed-Thing Rule",
+        "body": "A shadow means \"this is the thing to press\". If an element isn't the primary action or the hero media, it gets a Perforation border instead.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do give each screen exactly one Ticket Stamp gradient fill, for the action that moves the order forward.",
+      "Do set small terracotta text and links on paper in Stamp Deep (6.79:1), and keep Ticket Stamp for fills, icons and large type.",
+      "Do separate surfaces with Slip Card on Slip Paper and a Perforation hairline before reaching for a shadow.",
+      "Do tint every shadow with the ink or stamp brown (`rgba(43,29,20,…)` or `rgba(138,58,30,…)`).",
+      "Do use the strict corner ladder (12, 16, 20, 24, 28px), with pills for anything tapped repeatedly.",
+      "Do set restaurant names, category names and order numbers in Fraunces, and every control, form and table in Inter.",
+      "Do ease with `cubic-bezier(0.22, 1, 0.36, 1)` (rise 24px over 0.8s on entry, 0.7s for reveals on scroll) and press with `scale(0.99)`.",
+      "Do keep the Indian veg mark in its standard green square-and-dot form.",
+      "Do when bringing staff screens in line, remap shadcn's `--primary`, `--background`, `--card`, `--muted`, `--border` and `--ring` to Order Slip values, rather than restyling each component."
+    ],
+    "donts": [
+      "Don't use the legacy shadcn orange `#F98C1F`. White on it reaches 2.39:1.",
+      "Don't use the green `#28BD66` as a brand accent, or the pure-black `#000` dark mode.",
+      "Don't use violet or purple gradients (currently in AI Menu Import). They are outside the palette.",
+      "Don't use cool greys (`neutral-*`, `gray-*`, `zinc-*`) on any screen. Neutrals come from paper and ink.",
+      "Don't put white or cream labels on `ticket-stamp-night` (about 3.3:1). Night fills carry dark Hero Shade labels.",
+      "Don't give staff cards the stock `shadow-md` or `shadow-lg`. A shadow means \"press this\".",
+      "Don't use bounce or elastic easing (`animate-bounce`) for new-order alerts. Use sound, a badge and a single ease-out entrance.",
+      "Don't add a thick coloured stripe along one side of a rounded card. Use a Stamp Wash circle or a tint instead. (The L-shaped corner brackets around a QR preview are a scan frame, not a stripe, and stay.)",
+      "Don't use emoji as icons or in UI copy. Toasts and labels use plain words, and icons come from Lucide. Text sent outside the app, such as the WhatsApp report, may keep emoji.",
+      "Don't use gradient text."
+    ]
+  }
+}

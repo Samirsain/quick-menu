@@ -25,12 +25,19 @@ export function validateFile(file: File): { valid: boolean; error?: string } {
 }
 
 export function isHostedImage(url: string): boolean {
-  return url.includes("res.cloudinary.com/");
+  return url?.includes("res.cloudinary.com/") ?? false;
 }
 
-// Ask Cloudinary for a resized copy in the best format the browser supports (WebP/AVIF).
-// c_limit never upscales, so small uploads stay as they are.
+export function isUnsplashImage(url: string): boolean {
+  return url?.includes("images.unsplash.com") ?? false;
+}
+
+// Ask Cloudinary or Unsplash for a resized copy in the best format the browser supports.
 export function sizedImage(url: string, width: number): string {
+  if (!url) return "/placeholder.svg";
+  if (isUnsplashImage(url)) {
+    return url.includes("w=") ? url.replace(/w=\d+/, `w=${width}`) : `${url}&w=${width}`;
+  }
   return isHostedImage(url) ? url.replace("/image/upload/", `/image/upload/c_limit,w_${width},f_auto,q_auto/`) : url;
 }
 

@@ -14,7 +14,7 @@ interface Feedback {
   orders: {
     order_number: string;
     table_number: string;
-  };
+  } | null;
 }
 
 interface FeedbackViewProps {
@@ -83,7 +83,7 @@ const FeedbackView = ({ restaurantId }: FeedbackViewProps) => {
         </div>
         <div className="grid gap-4">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="shadow-md rounded-2xl border-0 p-5">
+            <Card key={i} className="p-5">
               <div className="flex justify-between items-start">
                 <div className="space-y-2">
                   <Skeleton className="h-5 w-32" />
@@ -105,36 +105,39 @@ const FeedbackView = ({ restaurantId }: FeedbackViewProps) => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl md:text-3xl font-bold mb-1">Customer Feedback</h2>
+        <h2 className="text-2xl font-semibold tracking-tight mb-1">Customer feedback</h2>
         <p className="text-sm text-muted-foreground">View feedback from your customers</p>
       </div>
 
       <div className="grid gap-4">
         {feedback.map((item) => (
-          <Card key={item.id} className="shadow-md rounded-2xl border-0 hover:shadow-[var(--shadow-medium)] transition-all duration-300">
+          <Card key={item.id}>
             <CardHeader className="p-5">
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start gap-4">
                 <div>
-                  <CardTitle className="text-base">
-                    Order #{item.orders.order_number}
+                  {/* The order can be gone (deleted or cleaned up); keep the feedback readable */}
+                  <CardTitle className="font-display text-xl font-normal tracking-normal">
+                    {item.orders ? `Order #${item.orders.order_number}` : "Order removed"}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Table {item.orders.table_number}
-                  </p>
+                  {item.orders && (
+                    <p className="text-sm text-muted-foreground">
+                      Table {item.orders.table_number}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   {renderStars(item.rating)}
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {new Date(item.created_at).toLocaleDateString()}
+                  <p className="text-xs text-muted-foreground mt-2 tabular-nums">
+                    {new Date(item.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                   </p>
                 </div>
               </div>
             </CardHeader>
             {item.comment && (
               <CardContent className="p-5 pt-0">
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground italic">
-                    "{item.comment}"
+                <div className="bg-muted/30 rounded-xl p-4">
+                  <p className="text-sm text-foreground/80">
+                    “{item.comment}”
                   </p>
                 </div>
               </CardContent>
@@ -144,7 +147,7 @@ const FeedbackView = ({ restaurantId }: FeedbackViewProps) => {
       </div>
 
       {feedback.length === 0 && (
-        <Card className="shadow-md rounded-2xl border-0 p-12 text-center">
+        <Card className="p-12 text-center">
           <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg text-muted-foreground">No feedback yet</p>
           <p className="text-sm text-muted-foreground mt-2">

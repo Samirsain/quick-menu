@@ -4,10 +4,13 @@
 
 /* Customer menu palette: warm cream, dark brown ink, terracotta accent (RGB channels for Tailwind alpha) */
 :root {
+  color-scheme: only light;
+  --font-sans: "Inter";
+  --font-display: "Fraunces";
   --menu-bg: 245 239 230;
   --menu-card: 252 248 242;
   --menu-ink: 43 29 20;
-  --menu-muted: 125 108 94;
+  --menu-muted: 118 101 88; /* #766558: 4.87:1 on paper, 5.26:1 on card */
   --menu-line: 232 221 207;
   --menu-accent: 176 82 44;
   --menu-accent-2: 138 58 30;
@@ -15,6 +18,7 @@
   --menu-hero: 24 16 11;
 }
 .dark {
+  color-scheme: only dark;
   --menu-bg: 22 17 13;
   --menu-card: 33 26 21;
   --menu-ink: 243 235 224;
@@ -27,89 +31,102 @@
 }
 
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Guest menu ("Terracotta + Slate"): cool slate neutrals and Geist instead of the cream paper and serif,
+   keeping the terracotta stamp as the one accent. CustomerMenu puts .guest on <html> while it is open,
+   so sheets and dialogs portalled to <body> get it too. Contrast: muted on bg 5.4:1, accent on bg 4.9:1,
+   white on accent 5.5:1; night muted on bg 7.5:1, night accent on bg 6:1. */
+.guest {
+  --font-sans: "Geist";
+  --font-display: "Geist";
+  --menu-bg: 241 243 245;
+  --menu-card: 252 252 253;
+  --menu-ink: 21 25 30;
+  --menu-muted: 91 100 112;
+  --menu-line: 222 226 231;
+  --menu-accent: 176 82 44;
+  --menu-accent-2: 138 58 30;
+  --menu-tint: 246 228 219;
+  --menu-hero: 14 17 22;
+}
+.guest.dark {
+  --menu-bg: 15 18 22;
+  --menu-card: 23 27 33;
+  --menu-ink: 233 236 239;
+  --menu-muted: 152 161 172;
+  --menu-line: 38 44 52;
+  --menu-accent: 224 122 79;
+  --menu-accent-2: 176 82 44;
+  --menu-tint: 58 36 24;
+  --menu-hero: 9 11 14;
+}
+/* Geist display needs weight and tight tracking where Fraunces relied on its optical size */
+.guest .font-display {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
 
+/* shadcn semantic tokens are aliases of the Order Slip palette above (RGB channels, see DESIGN.md).
+   Change a colour in the --menu-* block, never here. */
 @layer base {
   :root {
-    --background: 30 20% 98%;
-    --foreground: 220 15% 20%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 220 15% 20%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 20%;
-
-    --primary: 30 95% 55%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 220 15% 20%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 30 20% 94%;
-    --muted-foreground: 220 10% 45%;
-
-    --accent: 145 65% 45%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 30 15% 90%;
-    --input: 30 15% 90%;
-    --ring: 30 95% 55%;
-
+    --background: var(--menu-bg);
+    --foreground: var(--menu-ink);
+    --card: var(--menu-card);
+    --card-foreground: var(--menu-ink);
+    --popover: var(--menu-card);
+    --popover-foreground: var(--menu-ink);
+    --primary: var(--menu-accent);
+    --primary-foreground: 251 244 234; /* Label Cream */
+    --secondary: var(--menu-line);
+    --secondary-foreground: var(--menu-ink);
+    --muted: var(--menu-line);
+    --muted-foreground: var(--menu-muted);
+    --accent: var(--menu-tint);
+    --accent-foreground: var(--menu-accent-2);
+    --destructive: 180 35 24;
+    --destructive-foreground: 255 255 255;
+    --border: var(--menu-line);
+    --input: var(--menu-line);
+    --ring: var(--menu-accent);
     --radius: 0.75rem;
 
-    /* Custom design tokens */
-    --gradient-warm: linear-gradient(135deg, hsl(30 95% 55%) 0%, hsl(15 90% 50%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(30 20% 98%) 0%, hsl(30 15% 95%) 100%);
-    --shadow-soft: 0 4px 16px -4px hsl(30 95% 55% / 0.15);
-    --shadow-medium: 0 8px 24px -8px hsl(30 95% 55% / 0.2);
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Stamp-tinted shadows (DESIGN.md Elevation) */
+    --shadow-soft: 0 14px 30px -14px rgba(138, 58, 30, 0.7);
+    --shadow-medium: 0 24px 60px -30px rgba(43, 29, 20, 0.35);
   }
 
+  /* Night: the brighter stamp carries dark Hero Shade labels (5.9:1); cream on it would only reach 3.3:1 */
   .dark {
-    --background: 0 0% 0%; /* Pure black #000000 */
-    --foreground: 0 0% 95%;
-
-    --card: 0 0% 8%; /* Very dark gray for cards */
-    --card-foreground: 0 0% 95%;
-
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 95%;
-
-    --primary: 30 95% 55%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 95%;
-
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 60%;
-
-    --accent: 145 65% 45%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62.8% 50%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 30 95% 55%;
-
-    --gradient-warm: linear-gradient(135deg, hsl(30 95% 55%) 0%, hsl(15 90% 50%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 0%) 0%, hsl(0 0% 8%) 100%);
-    --shadow-soft: 0 4px 16px -4px hsl(30 95% 55% / 0.3);
-    --shadow-medium: 0 8px 24px -8px hsl(30 95% 55% / 0.35);
+    --primary-foreground: var(--menu-hero);
+    --accent-foreground: var(--menu-ink);
+    --destructive: 220 38 38;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+
+  html {
+    accent-color: rgb(var(--menu-accent));
+    caret-color: rgb(var(--menu-accent));
+    scrollbar-color: rgb(var(--menu-muted) / 0.45) transparent;
+  }
+
+  ::selection {
+    background: rgb(var(--menu-accent) / 0.22);
+  }
+
+  /* Thin loading line on the scan screen (matches the menu splash) */
+  @keyframes menu-load {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(200%); }
+  }
+
+  /* Browser focus outlines take the stamp colour instead of default black or blue */
+  :focus-visible {
+    outline-color: rgb(var(--menu-accent));
   }
 
   body {

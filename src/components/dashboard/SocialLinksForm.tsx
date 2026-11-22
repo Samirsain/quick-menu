@@ -75,7 +75,7 @@ const SocialLinksForm = ({ restaurantId }: Props) => {
 
   if (initialLoading) {
     return (
-      <Card className="shadow-md rounded-2xl border-0 overflow-hidden">
+      <Card className="overflow-hidden">
         <CardHeader className="p-5">
           <div className="flex items-center justify-between">
             <Skeleton className="h-5 w-28" />
@@ -95,7 +95,7 @@ const SocialLinksForm = ({ restaurantId }: Props) => {
   }
 
   return (
-    <Card className="shadow-md rounded-2xl border-0 overflow-hidden">
+    <Card className="overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between p-5">
         <CardTitle className="text-base">Social Media</CardTitle>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -123,9 +123,9 @@ const SocialLinksForm = ({ restaurantId }: Props) => {
                 <Label className="text-sm">Website</Label>
                 <Input value={links.website || ''} onChange={e => setLinks({ ...links, website: e.target.value })} placeholder="https://yourwebsite.com" className="h-10" />
               </div>
-              <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20 p-3">
-                <Label className="text-sm flex items-center gap-1.5"><Star className="h-4 w-4 text-amber-500 fill-amber-500" />Google Review Link</Label>
-                <Input value={links.google_review || ''} onChange={e => setLinks({ ...links, google_review: e.target.value })} placeholder="https://g.page/r/your-place/review" className="h-10 bg-white dark:bg-background" />
+              <div className="space-y-2 rounded-xl border border-primary/25 bg-accent/40 p-3">
+                <Label className="text-sm flex items-center gap-1.5"><Star className="h-4 w-4 text-primary fill-primary" />Google Review Link</Label>
+                <Input value={links.google_review || ''} onChange={e => setLinks({ ...links, google_review: e.target.value })} placeholder="https://g.page/r/your-place/review" className="h-10 bg-card" />
                 <p className="text-xs text-muted-foreground">
                   Google Business Profile → "Ask for reviews" → copy link. Customers see a "Review us on Google" button after their order is served.
                 </p>

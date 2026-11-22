@@ -101,6 +101,9 @@ QuickMenu is free for every restaurant: there are no plans or payments. The whol
 
 ```bash
 psql "$SUPABASE_DB_URL" -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20260929000000_quickmenu_schema.sql
+psql "$SUPABASE_DB_URL" -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20260929000001_restaurant_cover.sql
+# New Supabase projects don't grant tables to the API roles; this restores the grants the schema expects
+psql "$SUPABASE_DB_URL" -1 -v ON_ERROR_STOP=1 -f supabase/migrations/20260929000002_api_role_grants.sql
 ```
 
 Then check that the security rules hold (this runs in a transaction that is rolled back, so it changes nothing):
@@ -116,7 +119,27 @@ insert into admin_users (email, password_hash)
 values ('you@example.com', extensions.crypt('a-strong-password', extensions.gen_salt('bf')));
 ```
 
-### 3. Start Development
+### 3. Auth URLs
+
+In Supabase Dashboard → Authentication → URL Configuration, set **Site URL** to your domain and add these **Redirect URLs** (signup confirmation and password reset land here):
+
+- `https://your-domain/dashboard`
+- `https://your-domain/reset-password`
+
+### 4. Photo uploads (Cloudinary)
+
+Dish photos, logos and cover photos upload through the `cloudinary` edge function. Create a free Cloudinary account, then:
+
+```bash
+npx supabase functions deploy cloudinary
+npx supabase secrets set CLOUDINARY_CLOUD_NAME=... CLOUDINARY_API_KEY=... CLOUDINARY_API_SECRET=...
+```
+
+### 5. AI Menu Import (not included)
+
+The dashboard's AI Import calls an `ai-menu-import` edge function and a `can_use_ai_import` database function that are not in this repo. The button stays hidden until you deploy both and build with `VITE_AI_IMPORT_ENABLED=true`.
+
+### 6. Start Development
 
 ```bash
 npm run dev
@@ -342,22 +365,23 @@ Look for: "📦 Realtime order update received"
 
 ## 🚀 Deployment
 
-### Vercel / Netlify
+### Own server (nginx) behind Cloudflare, at quickmenu.biz
 
-1. **Set Environment Variables** in your deployment platform:
-   ```
-   VITE_SUPABASE_URL=https://your-project.supabase.co
-   VITE_SUPABASE_PUBLISHABLE_KEY=your_anon_key_here
-   ```
+The site is static files: build once, copy `dist/` to the server, and nginx serves them.
 
-2. **Update OneSignal Domain** in `index.html`:
-   - Add your production domain to the `isProduction` check
-   - Or configure OneSignal to allow your domain
-
-3. **Deploy**:
+1. **Build** on any machine with Node 20+ and a `.env` holding `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`:
    ```bash
-   npm run build
+   npm ci && npm run build
    ```
+2. **Copy** the build to the server (folder must match `root` in the nginx config):
+   ```bash
+   rsync -av --delete dist/ user@your-server:/var/www/quickmenu/dist/
+   ```
+3. **nginx**: install `deploy/nginx/quickmenu.biz.conf` (steps are at the top of that file). It carries the security headers, caching and the single-page-app fallback.
+4. **Cloudflare DNS**: an `A` record for `quickmenu.biz` pointing at the server IP, and a `CNAME` for `www` pointing at `quickmenu.biz`, both proxied (orange cloud).
+5. **Cloudflare SSL/TLS**: mode **Full (strict)**. Create an Origin Certificate (SSL/TLS → Origin Server) and save it on the server as `/etc/ssl/quickmenu.biz/cert.pem` and `key.pem`.
+
+OneSignal push only runs on `quickmenu.biz` (checked in `index.html` and `RestaurantProfile.tsx`), and the OneSignal app's Site URL must be `https://quickmenu.biz`.
 
 ### Common Deployment Errors
 
@@ -368,9 +392,12 @@ Look for: "📦 Realtime order update received"
 - ✅ Restart dev server after changing .env
 
 **Error: `OneSignal initialization error`**
-- ✅ Add your domain to allowed domains in `index.html`
-- ✅ Or disable OneSignal for non-production environments
+- ✅ Make sure the OneSignal app's Site URL is `https://quickmenu.biz`
+- ✅ OneSignal is skipped on every other domain (localhost, previews)
 - ✅ This won't affect core functionality
+
+**Refreshing `/dashboard` or a menu link shows 404**
+- ✅ The nginx config's `try_files ... /index.html` fallback is missing
 
 ---
 

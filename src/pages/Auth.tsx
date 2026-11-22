@@ -53,7 +53,11 @@ const Auth = () => {
       setResetEmailSent(true);
       toast({ title: "Email Sent!", description: "Check your email for the reset link" });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      const errorMsg = error?.message && error.message !== "{}" 
+        ? error.message 
+        : error?.error_description 
+        || (error?.status === 504 ? "Sign up timed out. Please check your connection or try again." : "An error occurred during sign up. Please try again.");
+      toast({ title: "Error", description: errorMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -87,7 +91,11 @@ const Auth = () => {
         navigate("/dashboard");
       }
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      const errorMsg = error?.message && error.message !== "{}" 
+        ? error.message 
+        : error?.error_description 
+        || (error?.status === 504 ? "Sign up timed out. Please check your connection or try again." : "An error occurred during sign up. Please try again.");
+      toast({ title: "Error", description: errorMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -130,7 +138,11 @@ const Auth = () => {
         setActiveTab("signin");
       }
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      const errorMsg = error?.message && error.message !== "{}" 
+        ? error.message 
+        : error?.error_description 
+        || (error?.status === 504 ? "Sign up timed out. Please check your connection or try again." : "An error occurred during sign up. Please try again.");
+      toast({ title: "Error", description: errorMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -143,19 +155,19 @@ const Auth = () => {
 
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-accent/50 via-white to-accent/30 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur">
           <CardContent className="p-8">
             <Logo />
-            <h1 className="text-2xl font-bold text-center text-gray-900">QuickMenu</h1>
-            <p className="text-gray-500 text-center mt-1 mb-6">Reset your password</p>
+            <h1 className="text-2xl font-bold text-center text-foreground">QuickMenu</h1>
+            <p className="text-muted-foreground text-center mt-1 mb-6">Reset your password</p>
 
             {resetEmailSent ? (
               <div className="space-y-4">
-                <div className="p-4 bg-green-50 rounded-xl text-center">
-                  <Check className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                  <p className="text-green-800 font-medium">Reset email sent!</p>
-                  <p className="text-green-600 text-sm">Check your inbox for the reset link</p>
+                <div className="p-4 bg-accent/50 rounded-xl text-center">
+                  <Check className="h-8 w-8 text-primary mx-auto mb-2" />
+                  <p className="text-foreground font-medium">Reset email sent</p>
+                  <p className="text-muted-foreground text-sm">Check your inbox for the reset link</p>
                 </div>
                 <Button 
                   variant="outline" 
@@ -168,27 +180,27 @@ const Auth = () => {
             ) : (
               <form onSubmit={handleForgotPassword} className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-gray-700 font-medium">Email</Label>
+                  <Label className="text-foreground/80 font-medium">Email</Label>
                   <Input 
                     type="email" 
                     value={email} 
                     onChange={(e) => setEmail(e.target.value)} 
                     placeholder="you@restaurant.com"
-                    className="h-12 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500"
+                    className="h-12 rounded-xl border-border focus:border-primary focus:ring-ring"
                     required 
                   />
                 </div>
                 <Button 
                   type="submit" 
                   disabled={loading}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-full h-11"
+                  className="w-full bg-primary hover:bg-primary/90 text-white rounded-full h-11"
                 >
                   {loading ? "Sending..." : "Send Reset Link"}
                 </Button>
                 <button 
                   type="button" 
                   onClick={() => setShowForgotPassword(false)} 
-                  className="w-full text-center text-gray-500 hover:text-orange-500 text-sm"
+                  className="w-full text-center text-muted-foreground hover:text-primary text-sm"
                 >
                   ← Back to Sign In
                 </button>
@@ -202,21 +214,21 @@ const Auth = () => {
 
   // Main auth screen (Sign In / Sign Up)
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50/50 via-white to-orange-50/30 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-accent/50 via-white to-accent/30 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur">
         <CardContent className="p-8">
           <Logo />
-          <h1 className="text-2xl font-bold text-center text-gray-900">QuickMenu</h1>
-          <p className="text-gray-500 text-center mt-1 mb-6">Create your digital menu</p>
+          <h1 className="text-2xl font-bold text-center text-foreground">QuickMenu</h1>
+          <p className="text-muted-foreground text-center mt-1 mb-6">Create your digital menu</p>
 
           {/* Tabs */}
-          <div className="flex bg-gray-100 rounded-full p-1 mb-6">
+          <div className="flex bg-background rounded-full p-1 mb-6">
             <button
               onClick={() => setActiveTab("signin")}
               className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${
                 activeTab === "signin" 
-                  ? "bg-white text-gray-900 shadow-sm" 
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground/80"
               }`}
             >
               Sign In
@@ -225,8 +237,8 @@ const Auth = () => {
               onClick={() => setActiveTab("signup")}
               className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${
                 activeTab === "signup" 
-                  ? "bg-white text-gray-900 shadow-sm" 
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground/80"
               }`}
             >
               Sign Up
@@ -236,50 +248,50 @@ const Auth = () => {
           {activeTab === "signup" ? (
             <form onSubmit={handleSignUp} className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Restaurant Name *</Label>
+                <Label className="text-foreground/80 font-medium">Restaurant Name *</Label>
                 <Input 
                   value={restaurantName} 
                   onChange={(e) => setRestaurantName(e.target.value)} 
                   placeholder="Your Restaurant"
-                  className="h-12 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500"
+                  className="h-12 rounded-xl border-border focus:border-primary focus:ring-ring"
                   required 
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Description</Label>
+                <Label className="text-foreground/80 font-medium">Description</Label>
                 <Input 
                   value={restaurantDescription} 
                   onChange={(e) => setRestaurantDescription(e.target.value)} 
                   placeholder="Fine dining experience... (optional)"
-                  className="h-12 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500"
+                  className="h-12 rounded-xl border-border focus:border-primary focus:ring-ring"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Email *</Label>
+                <Label className="text-foreground/80 font-medium">Email *</Label>
                 <Input 
                   type="email" 
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
                   placeholder="you@restaurant.com"
-                  className="h-12 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500"
+                  className="h-12 rounded-xl border-border focus:border-primary focus:ring-ring"
                   required 
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Password *</Label>
+                <Label className="text-foreground/80 font-medium">Password *</Label>
                 <div className="relative">
                   <Input 
                     type={showPassword ? "text" : "password"} 
                     value={password} 
                     onChange={(e) => setPassword(e.target.value)} 
                     placeholder="Min 8 characters"
-                    className="h-12 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500 pr-12"
+                    className="h-12 rounded-xl border-border focus:border-primary focus:ring-ring pr-12"
                     required 
                   />
                   <button 
                     type="button" 
                     onClick={() => setShowPassword(!showPassword)} 
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -288,37 +300,37 @@ const Auth = () => {
               <Button 
                 type="submit" 
                 disabled={loading}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-full h-12 text-base font-medium"
+                className="w-full bg-primary hover:bg-primary/90 text-white rounded-full h-12 text-base font-medium"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Create free account <ArrowRight className="h-4 w-4 ml-2" /></>}
               </Button>
-              <p className="text-center text-sm text-gray-500">
+              <p className="text-center text-sm text-muted-foreground">
                 By signing up, you agree to our{" "}
-                <Link to="/terms" className="text-orange-500 hover:underline">Terms</Link>
+                <Link to="/terms" className="text-primary hover:underline">Terms</Link>
                 {" "}and{" "}
-                <Link to="/privacy-policy" className="text-orange-500 hover:underline">Privacy Policy</Link>
+                <Link to="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link>
               </p>
             </form>
           ) : (
             <form onSubmit={handleSignIn} className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Email</Label>
+                <Label className="text-foreground/80 font-medium">Email</Label>
                 <Input 
                   type="email" 
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
                   placeholder="you@restaurant.com"
-                  className="h-12 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500"
+                  className="h-12 rounded-xl border-border focus:border-primary focus:ring-ring"
                   required 
                 />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-gray-700 font-medium">Password</Label>
+                  <Label className="text-foreground/80 font-medium">Password</Label>
                   <button 
                     type="button" 
                     onClick={() => setShowForgotPassword(true)} 
-                    className="text-sm text-orange-500 hover:text-orange-600 font-medium"
+                    className="text-sm text-primary hover:text-primary font-medium"
                   >
                     Forgot password?
                   </button>
@@ -328,13 +340,13 @@ const Auth = () => {
                     type={showPassword ? "text" : "password"} 
                     value={password} 
                     onChange={(e) => setPassword(e.target.value)} 
-                    className="h-12 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500 pr-12"
+                    className="h-12 rounded-xl border-border focus:border-primary focus:ring-ring pr-12"
                     required 
                   />
                   <button 
                     type="button" 
                     onClick={() => setShowPassword(!showPassword)} 
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -343,14 +355,14 @@ const Auth = () => {
               <Button 
                 type="submit" 
                 disabled={loading}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-full h-12 text-base font-medium"
+                className="w-full bg-primary hover:bg-primary/90 text-white rounded-full h-12 text-base font-medium"
               >
                 {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Signing in...</> : "Sign In"}
               </Button>
             </form>
           )}
 
-          <Link to="/" className="block text-center mt-6 text-gray-500 hover:text-orange-500 text-sm">
+          <Link to="/" className="block text-center mt-6 text-muted-foreground hover:text-primary text-sm">
             ← Back to Home
           </Link>
         </CardContent>

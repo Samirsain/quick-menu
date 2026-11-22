@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { isRateLimited, getClientFingerprint } from "@/lib/security";
+import { isZenCafe } from "@/data/mockRestaurants";
 
 interface ServiceCallButtonProps {
   restaurantId: string;
@@ -201,6 +202,26 @@ const ServiceCallButton = ({ restaurantId, tableNumber: propTableNumber, disable
 
     setLoading(callType);
 
+    if (isZenCafe(restaurantId)) {
+      setRecentCalls(prev => ({ ...prev, [callType]: true }));
+      toast({
+        title: "Request sent",
+        description: `${callType.charAt(0).toUpperCase() + callType.slice(1)} request sent to ZenCafe staff`,
+        duration: 3000,
+      });
+      if ("vibrate" in navigator) navigator.vibrate(100);
+      setLoading(null);
+      setTimeout(() => {
+        setRecentCalls(prev => ({ ...prev, [callType]: false }));
+        toast({
+          title: "Staff attended",
+          description: `ZenCafe staff attended table ${tableNumber}`,
+          duration: 3000,
+        });
+      }, 7000);
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from("service_calls")
@@ -288,7 +309,7 @@ const ServiceCallButton = ({ restaurantId, tableNumber: propTableNumber, disable
               <div role="dialog" aria-modal="true" aria-labelledby="service-title" className="rounded-3xl overflow-hidden border border-menu-line bg-menu-bg text-menu-ink shadow-[0_30px_80px_-20px_rgba(28,25,23,0.35)]">
                 <div className="px-6 pt-6 pb-2 flex items-start justify-between">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-menu-muted">{tableNumber ? `Table ${tableNumber}` : "Your table"}</p>
+                    <p className="text-sm text-menu-muted">{tableNumber ? `Table ${tableNumber}` : "Your table"}</p>
                     <h3 id="service-title" className="mt-2 font-display text-[28px] leading-tight tracking-tight">How can we help?</h3>
                   </div>
                   <button onClick={() => setIsOpen(false)} aria-label="Close" className="h-9 w-9 -mr-2 rounded-full flex items-center justify-center text-menu-muted hover:text-menu-ink hover:bg-menu-ink/5 transition-colors">

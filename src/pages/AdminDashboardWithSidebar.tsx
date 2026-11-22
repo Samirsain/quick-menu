@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { changeAdminPassword } from "@/lib/adminAuth";
+import { changeAdminPassword, getAdminSession } from "@/lib/adminAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,13 +69,13 @@ const AdminDashboardWithSidebar = () => {
     {
       label: "Restaurants",
       href: "#restaurants",
-      icon: <Shield className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <Shield className="text-foreground/80 h-5 w-5 flex-shrink-0" />,
       onClick: () => setActiveTab("restaurants"),
     },
     {
       label: "Analytics",
       href: "#analytics",
-      icon: <BarChart3 className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />,
+      icon: <BarChart3 className="text-foreground/80 h-5 w-5 flex-shrink-0" />,
       onClick: () => setActiveTab("analytics"),
     },
   ];
@@ -83,34 +83,10 @@ const AdminDashboardWithSidebar = () => {
   useEffect(() => {
     if (!requireAuth()) return;
     fetchRestaurants();
-    
-    const channel = supabase
-      .channel(`admin-restaurants-${session?.email}`, {
-        config: {
-          broadcast: { self: false },
-          presence: { key: '' },
-        }
-      })
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "restaurants",
-        },
-        () => {
-          setTimeout(() => {
-            if (!document.hidden) {
-              fetchRestaurants();
-            }
-          }, 500);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // ponytail: refresh when the tab comes back instead of realtime (guests can't subscribe to private columns)
+    const onVisible = () => { if (!document.hidden) fetchRestaurants(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
   useEffect(() => {
@@ -135,11 +111,12 @@ const AdminDashboardWithSidebar = () => {
 
   const fetchRestaurants = async () => {
     try {
-      const { data: restaurantsData, error } = await supabase
-        .from("restaurants")
-        .select("id, name, email, phone, is_active, created_at, logo_url, user_id")
-        .order("created_at", { ascending: false });
+      // Owner emails are private: only a live admin session can list them
+      const { data: restaurantsData, error } = await supabase.rpc("admin_list_restaurants", {
+        p_token: getAdminSession()?.sessionToken ?? "",
+      });
 
+      if (error?.code === "42501") return logout(); // session expired or revoked
       if (error) throw error;
 
       setRestaurants(restaurantsData || []);
@@ -177,9 +154,10 @@ const AdminDashboardWithSidebar = () => {
       const { error } = await supabase.rpc("toggle_restaurant_status", {
         p_restaurant_id: restaurant.id,
         p_is_active: newStatus,
-        p_admin_email: session.email,
+        p_token: session.sessionToken,
       });
 
+      if (error?.code === "42501") return logout();
       if (error) throw error;
 
       toast({
@@ -242,7 +220,7 @@ const AdminDashboardWithSidebar = () => {
   return (
     <div
       className={cn(
-        "flex flex-col md:flex-row bg-gray-100 dark:bg-neutral-800 w-full flex-1 mx-auto border border-neutral-200 dark:border-neutral-700 overflow-hidden",
+        "flex flex-col md:flex-row bg-background w-full flex-1 mx-auto border border-border overflow-hidden",
         "h-screen"
       )}
     >
@@ -253,38 +231,38 @@ const AdminDashboardWithSidebar = () => {
             <div className="mt-6 flex flex-col gap-1">
               {links.map((link, idx) => (
                 <div key={idx} onClick={link.onClick}>
-                  <SidebarLink link={link} className={cn("rounded-lg px-2 transition-colors", link.href === `#${activeTab}` ? "bg-white dark:bg-neutral-700 shadow-sm font-semibold" : "hover:bg-white/60 dark:hover:bg-neutral-700/50")} />
+                  <SidebarLink link={link} className={cn("rounded-lg px-2 transition-colors", link.href === `#${activeTab}` ? "bg-white dark:bg-muted shadow-sm font-semibold" : "hover:bg-card/70")} />
                 </div>
               ))}
             </div>
           </div>
-          <div className="space-y-1 border-t border-neutral-200 dark:border-neutral-700 pt-4">
+          <div className="space-y-1 border-t border-border pt-4">
             <div
               onClick={() => setPasswordDialog(true)}
-              className="flex items-center justify-start gap-2 group/sidebar py-2 px-2 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-md transition-colors"
+              className="flex items-center justify-start gap-2 group/sidebar py-2 px-2 cursor-pointer hover:bg-muted rounded-md transition-colors"
             >
-              <Key className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+              <Key className="text-foreground/80 h-5 w-5 flex-shrink-0" />
               <motion.span
                 animate={{
                   display: "inline-block",
                   opacity: 1,
                 }}
-                className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
+                className="text-foreground/80 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
               >
                 Change Password
               </motion.span>
             </div>
             <div
               onClick={logout}
-              className="flex items-center justify-start gap-2 group/sidebar py-2 px-2 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-colors"
+              className="flex items-center justify-start gap-2 group/sidebar py-2 px-2 cursor-pointer hover:bg-destructive/10 rounded-md transition-colors"
             >
-              <LogOut className="text-red-600 dark:text-red-400 h-5 w-5 flex-shrink-0" />
+              <LogOut className="text-destructive h-5 w-5 flex-shrink-0" />
               <motion.span
                 animate={{
                   display: "inline-block",
                   opacity: 1,
                 }}
-                className="text-red-600 dark:text-red-400 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
+                className="text-destructive text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
               >
                 Logout
               </motion.span>
@@ -455,7 +433,7 @@ const AdminContent = ({
 }: any) => {
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="p-2 md:p-10 rounded-tl-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex flex-col gap-2 flex-1 w-full overflow-y-auto">
+      <div className="p-2 md:p-10 rounded-tl-2xl border border-border bg-card flex flex-col gap-2 flex-1 w-full overflow-y-auto">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
@@ -476,7 +454,7 @@ const AdminContent = ({
               </Card>
               <Card className="p-4 md:p-6">
                 <div className="text-xs md:text-sm text-muted-foreground mb-1">Disabled</div>
-                <div className="text-2xl md:text-3xl font-bold text-red-600">{stats.disabled}</div>
+                <div className="text-2xl md:text-3xl font-bold text-destructive">{stats.disabled}</div>
               </Card>
             </div>
 
