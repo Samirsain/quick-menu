@@ -2,10 +2,9 @@ import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, u
 import { Link, useNavigate } from "react-router-dom";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import gsap from "gsap";
-import { ArrowLeft, BellRing, Leaf, Maximize, Minimize, Printer, StickyNote, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, BellRing, Leaf, Maximize, Minimize, StickyNote, Volume2, VolumeX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBusinessType } from "@/hooks/useBusinessType";
-import { printKot } from "@/lib/printKot";
 import { useOnShift } from "@/hooks/useOnShift";
 import { staffApi } from "@/lib/staffApi";
 import { STATUS, asStatus, fmtTime, minutesSince, shortOrderNo, withStatus, type OrderPayload, type OrderStatus } from "@/lib/orderFlow";
@@ -332,16 +331,13 @@ const Ticket = forwardRef<HTMLElement, {
         <div className="mt-5 flex gap-2">
           {status === "pending" && (
             <>
-              <ActionButton tone="green" onClick={() => onStatus(order, "accepted")}>Accept</ActionButton>
+              <ActionButton tone="green" onClick={() => onStatus(order, "preparing")}>Accept</ActionButton>
               <ActionButton tone="muted" onClick={() => onStatus(order, "rejected")} narrow>Reject</ActionButton>
             </>
           )}
-          {status === "accepted" && <ActionButton tone="accent" onClick={() => onStatus(order, "preparing")}>Start preparing</ActionButton>}
-          {status === "preparing" && <ActionButton tone="accent" onClick={() => onStatus(order, "ready")}>Mark ready</ActionButton>}
+          {/* Accept goes straight to cooking; "accepted" only exists on older orders */}
+          {(status === "accepted" || status === "preparing") && <ActionButton tone="accent" onClick={() => onStatus(order, "ready")}>Mark ready</ActionButton>}
           {status === "ready" && <ActionButton tone="green" onClick={() => onStatus(order, "completed")}>Mark served</ActionButton>}
-          <button onClick={() => printKot(order, locationLabel)} className="h-12 w-12 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] flex items-center justify-center transition-colors flex-shrink-0" aria-label="Print KOT">
-            <Printer className="h-[18px] w-[18px] text-white/65" />
-          </button>
         </div>
       </div>
     </motion.article>

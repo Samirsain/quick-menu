@@ -1,7 +1,7 @@
 // Live floor: every table at a glance (free, seated, ordered, bill due, cleaning), the payments waiting for a
 // staff confirm, and one sheet per table that shows the one thing to do next (everything else folds away).
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Bell, ChevronDown, Clock, Loader2, LayoutGrid, Printer, Wallet } from "lucide-react";
+import { Bell, ChevronDown, Clock, Loader2, LayoutGrid, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useBusinessType } from "@/hooks/useBusinessType";
 import { useOnShift } from "@/hooks/useOnShift";
 import { floorStatus, type FloorStatus } from "@/lib/bill";
-import { buildBillHtml, printHtml } from "@/lib/printKot";
 import { staffApi, staffErrorCopy, inr, since, PAY_MODE, type DiningTable, type FloorCall, type FloorPayment, type FloorSeating, type FloorState } from "@/lib/staffApi";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +19,7 @@ import { cn } from "@/lib/utils";
 /** floor_state, kept live by realtime (debounced) with a slow poll as a safety net */
 export function useFloor(restaurantId: string) {
   const [floor, setFloor] = useState<FloorState | null>(null);
-  const [config, setConfig] = useState<{ numbers: string[]; name: string; goal: number } | null>(null);
+  const [config, setConfig] = useState<{ numbers: string[]; goal: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -32,12 +31,12 @@ export function useFloor(restaurantId: string) {
   useEffect(() => {
     load();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v2 columns aren't in the generated types until `supabase gen types` runs
-    (supabase.from("restaurants") as any).select("name, table_config, loyalty").eq("id", restaurantId).single()
-      .then(({ data }: { data: { name: string; table_config: { total?: number; skip?: number[] }; loyalty?: { goal?: number } } | null }) => {
+    (supabase.from("restaurants") as any).select("table_config, loyalty").eq("id", restaurantId).single()
+      .then(({ data }: { data: { table_config: { total?: number; skip?: number[] }; loyalty?: { goal?: number } } | null }) => {
         const tc = data?.table_config || {};
         const skip = new Set(tc.skip || []);
         const numbers = Array.from({ length: tc.total || 10 }, (_, i) => i + 1).filter(n => !skip.has(n)).map(String);
-        setConfig({ numbers, name: data?.name || "", goal: data?.loyalty?.goal || 200 });
+        setConfig({ numbers, goal: data?.loyalty?.goal || 200 });
       });
     const ch = supabase.channel(`floor-${restaurantId}-${Date.now()}`);
     for (const table of ["dining_tables", "seatings", "payments", "orders", "service_calls"]) {
@@ -439,11 +438,6 @@ export function TableSheet({ restaurantId, number, rows, config, onClose, onChan
                       </select>
                       <Button variant="outline" disabled={!mergeInto || !!busy} onClick={() => run("merge", () => staffApi.merge(restaurantId, s.table_number, mergeInto, by), `One bill with ${lt} ${mergeInto}`)}>Join</Button>
                     </div>
-                    {lines.length > 0 && (
-                      <Button variant="outline" className="w-full gap-2" onClick={() => printHtml(buildBillHtml({ restaurant: config?.name || "", table: s.table_number, lines, bill: b, discountLabel: s.discount?.label }, locationLabel))}>
-                        <Printer className="h-4 w-4" /> Print bill
-                      </Button>
-                    )}
                     {b.due > 0 && (
                       <div className="space-y-2 pt-1">
                         <label htmlFor="close-note" className="text-xs text-muted-foreground">Close with {inr(b.due)} still due (the reason goes in the log)</label>

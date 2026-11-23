@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Minus, X, Search, Moon, Sun, Clock, ArrowRight, ArrowLeft, ChevronRight, Receipt, MoreVertical, ShoppingBag, Leaf,
   Instagram, Facebook, Twitter, Globe, Loader2, Star, CupSoda, IceCreamCone, ConciergeBell, Salad, Pizza, Croissant, UtensilsCrossed, Trash2,
-  Sparkles, ArrowUpRight, ArrowUp
+  Sparkles, ArrowUpRight
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,6 +32,9 @@ import { useBusinessType } from "@/hooks/useBusinessType";
 import { isZenCafe, getMockRestaurant, getMockCategories, getMockMenuItems } from "@/data/mockRestaurants";
 
 gsap.registerPlugin(ScrollTrigger);
+
+// Footer entrance: each part rises in after the one before it
+const FOOT_RISE = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } } };
 
 const CustomerMenu = () => {
   const { restaurantId } = useParams();
@@ -725,6 +728,10 @@ const CustomerMenu = () => {
         <span className="text-sm text-menu-muted font-medium">Total</span>
         <span className="font-display text-[26px] font-semibold tabular-nums text-menu-ink">{formatINR(totalPrice)}</span>
       </div>
+      {tableLocked ? (
+        // The QR already told us the table: one quiet line instead of a form field
+        <p className="text-sm text-menu-muted">For <span className="font-semibold text-menu-ink">{locationLabel} {tableNumber}</span></p>
+      ) : (
       <div className="bg-menu-bg/80 p-3 rounded-2xl border border-menu-line/80">
         <div className="flex items-center justify-between mb-1.5">
           <label htmlFor="table-no-input" className="text-xs font-semibold uppercase tracking-wider text-menu-ink flex items-center gap-1.5">
@@ -736,18 +743,14 @@ const CustomerMenu = () => {
         <input
           id="table-no-input"
           value={tableNumber}
-          onChange={(e) => !tableLocked && setTableNumber(e.target.value)}
+          onChange={(e) => setTableNumber(e.target.value)}
           placeholder={`Enter ${locationLabelLower} number (e.g. 4)`}
-          readOnly={tableLocked}
-          className={`w-full h-11 px-4 rounded-xl border border-menu-line bg-menu-card text-[15px] font-medium text-menu-ink outline-none focus:border-menu-accent focus:ring-1 focus:ring-menu-accent transition-colors ${tableLocked ? "text-menu-muted bg-menu-tint/30" : ""}`}
+          className="w-full h-11 px-4 rounded-xl border border-menu-line bg-menu-card text-[15px] font-medium text-menu-ink outline-none focus:border-menu-accent focus:ring-1 focus:ring-menu-accent transition-colors"
         />
-        {tableLocked && <p className="text-[11px] text-menu-muted mt-1.5">{tableFromQR ? "Detected from the QR code on your table" : "Your table for this visit"}</p>}
       </div>
-      <div>
-        <label htmlFor="order-note" className="block text-xs font-medium text-menu-muted mb-1.5">Note for the kitchen</label>
-        <textarea id="order-note" rows={2} maxLength={200} value={orderNote} onChange={(e) => setOrderNote(e.target.value)}
-          placeholder="e.g. less spicy, no onion" className={`${inputClass} h-auto py-2.5 resize-none text-[14px]`} />
-      </div>
+      )}
+      <input id="order-note" aria-label="Note for the kitchen" maxLength={200} value={orderNote} onChange={(e) => setOrderNote(e.target.value)}
+        placeholder="Note for the kitchen (optional)" className={`${inputClass} text-[14px]`} />
       <PrimaryButton onClick={placeOrder} disabled={!tableNumber || cart.length === 0 || isPlacingOrder} className="w-full h-12 text-[15px] font-semibold">
         {isPlacingOrder ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Sending to the kitchen</> : <>Place order · {formatINR(totalPrice)}</>}
       </PrimaryButton>
@@ -932,10 +935,19 @@ const CustomerMenu = () => {
             )}
 
             {!isLoadingItems && (
-              <footer className="mt-20 pt-10 pb-8 border-t border-menu-line/70 text-center">
+              <motion.footer
+                initial={prefersReducedMotion() ? false : "hidden"}
+                whileInView="show"
+                viewport={{ once: true, amount: 0.3 }}
+                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.09 } } }}
+                className="mt-10 pb-6 text-center"
+              >
+                {/* A hairline that draws out from the centre, then links and credits rise in */}
+                <motion.div variants={{ hidden: { scaleX: 0 }, show: { scaleX: 1, transition: { duration: 0.7, ease: EASE } } }} className="h-px bg-menu-line/70 mb-8" />
+                <motion.div variants={FOOT_RISE}>
                 {/* Google Review & Social Links */}
                 {(googleReviewUrl || socialLinks.length > 0) && (
-                  <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+                  <div className="flex flex-wrap items-center justify-center gap-3 mb-5">
                     {googleReviewUrl && (
                       <motion.a
                         whileHover={{ scale: 1.02 }}
@@ -972,55 +984,19 @@ const CustomerMenu = () => {
                 )}
 
                 {/* Minimal Developer & Powered by Pill */}
-                <div className="inline-flex items-center flex-wrap justify-center gap-x-2.5 gap-y-1.5 px-4 sm:px-5 py-2 rounded-full bg-menu-card/70 border border-menu-line/70 text-xs text-menu-muted mb-3 shadow-sm backdrop-blur-sm">
-                  <span className="flex items-center gap-1.5">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                    </span>
-                    <span>Crafted by</span>
-                    <a
-                      href="https://zenviqdigital.in"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-menu-ink hover:text-menu-accent transition-colors underline-offset-4 hover:underline"
-                    >
-                      Samir Sain
-                    </a>
-                  </span>
-                  <span className="text-menu-line">·</span>
-                  <span className="flex items-center gap-1.5">
-                    <span>Powered by</span>
-                    <motion.a
-                      whileHover={{ x: 1 }}
-                      href="https://zenviqdigital.in"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-semibold text-menu-accent hover:underline underline-offset-4 inline-flex items-center gap-1.5"
-                    >
-                      <ZenviqLogo className="w-4 h-4 rounded-full shadow-sm" />
-                      <span>zenviqdigital.in</span>
-                      <ArrowUpRight className="w-3 h-3" />
-                    </motion.a>
-                  </span>
-                </div>
-
-                {/* Bottom line: Copyright & Back to Top */}
-                <div className="flex items-center justify-center gap-3 text-[11px] sm:text-xs text-menu-muted">
-                  <span>© {new Date().getFullYear()} QuickMenu</span>
-                  <span>·</span>
-                  <span>Made for {restaurant?.name || "ZenCafe"}</span>
-                  <span>·</span>
-                  <button
-                    type="button"
-                    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                    className="hover:text-menu-ink transition-colors inline-flex items-center gap-1"
-                  >
-                    <span>Top</span>
-                    <ArrowUp className="w-3 h-3" />
-                  </button>
-                </div>
-              </footer>
+                </motion.div>
+                {/* Credits: two quiet lines */}
+                <motion.div variants={FOOT_RISE}>
+                <p className="text-xs text-menu-muted">
+                  Powered by{" "}
+                  <a href="https://zenviqdigital.in" target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 align-middle font-semibold text-menu-accent hover:underline underline-offset-4">
+                    <ZenviqLogo className="w-4 h-4 rounded-full" />zenviqdigital.in
+                  </a>
+                </p>
+                <p className="mt-1.5 text-[11px] text-menu-muted">© {new Date().getFullYear()} QuickMenu · Crafted by Samir Sain</p>
+                </motion.div>
+              </motion.footer>
             )}
           </main>
 

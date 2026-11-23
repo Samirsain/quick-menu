@@ -838,9 +838,6 @@ const DashboardWithSidebar = () => {
             <>
               <ShiftChip restaurantId={restaurantId} className="max-w-[9rem]" />
               <ThemeToggle />
-              <InstallAppButton className="h-10 w-10 flex items-center justify-center rounded-full text-foreground active:bg-muted">
-                <Download className="h-5 w-5" aria-label="Install app" />
-              </InstallAppButton>
             </>
           }
         >
