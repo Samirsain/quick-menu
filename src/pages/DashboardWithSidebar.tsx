@@ -9,11 +9,9 @@ import {
   QrCode, 
   LogOut, 
   Menu as MenuIcon, 
-  Package, 
-  MessageSquare, 
-  BarChart3, 
-  Share2, 
-  Settings, 
+  Package,
+  BarChart3,
+  Settings,
   Bell,
   X,
   User,
@@ -26,10 +24,9 @@ import {
   Droplets,
   PauseCircle,
   LayoutGrid,
-  Wallet,
   Users,
-  SlidersHorizontal,
   LineChart,
+  ChevronDown,
   LifeBuoy,
   SprayCan,
 } from "lucide-react";
@@ -47,11 +44,11 @@ import SocialLinksForm from "@/components/dashboard/SocialLinksForm";
 import RestaurantProfile from "@/components/dashboard/RestaurantProfile";
 import ServiceCallsPanel from "@/components/dashboard/ServiceCallsPanel";
 import FloorView from "@/components/dashboard/FloorView";
-import CashierView from "@/components/dashboard/CashierView";
 import ReportsView from "@/components/dashboard/ReportsView";
 import StaffView, { ShiftChip } from "@/components/dashboard/StaffView";
 import ServiceSetup from "@/components/dashboard/ServiceSetup";
 import { useBusinessType } from "@/hooks/useBusinessType";
+import { useOnShift } from "@/hooks/useOnShift";
 
 interface Order {
   id: string;
@@ -105,7 +102,12 @@ const DashboardWithSidebar = () => {
   // The tab lives in the URL (?tab=orders) so refresh/back keep it and app shortcuts can open a tab directly
   const [activeTab, setActiveTab] = useState(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab === "cashier") return "floor"; // the cashier list now sits at the top of Floor
     return tab && TABS.includes(tab) ? tab : "stats";
+  });
+  const { who: onShift } = useOnShift(restaurantId);
+  const [setupPref, setSetupPref] = useState<boolean | null>(() => {
+    try { const v = localStorage.getItem("qm_nav_setup"); return v ? v === "open" : null; } catch { return null; }
   });
   const [open, setOpen] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -123,100 +125,35 @@ const DashboardWithSidebar = () => {
     window.history.replaceState(null, "", tab === "stats" ? "/dashboard" : `/dashboard?tab=${tab}`);
   };
 
+  // Two groups: what staff use during service, and set-up/review pages (owners mostly)
   const links = [
+    { group: "service", label: "Home", href: "#stats", icon: <BarChart3 className="h-5 w-5 flex-shrink-0" />, onClick: () => handleTabChange("stats") },
+    { group: "service", label: "Floor", href: "#floor", icon: <LayoutGrid className="h-5 w-5 flex-shrink-0" />, onClick: () => handleTabChange("floor") },
     {
-      label: "Overview",
-      href: "#stats",
-      icon: <BarChart3 className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => handleTabChange("stats"),
-    },
-    {
-      label: "Floor",
-      href: "#floor",
-      icon: <LayoutGrid className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => handleTabChange("floor"),
-    },
-    {
-      label: "Menu",
-      href: "#menu",
-      icon: <MenuIcon className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => handleTabChange("menu"),
-    },
-    {
-      label: "Orders",
-      href: "#orders",
-      icon: <Package className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => {
-        handleTabChange("orders");
-        setNewOrdersCount(0);
-      },
+      group: "service", label: "Orders", href: "#orders", icon: <Package className="h-5 w-5 flex-shrink-0" />,
+      onClick: () => { handleTabChange("orders"); setNewOrdersCount(0); },
       badge: newOrdersCount,
     },
+    { group: "service", label: "Kitchen", href: "/kitchen", icon: <ChefHat className="h-5 w-5 flex-shrink-0" />, onClick: () => {} },
     {
-      label: "Kitchen Display",
-      href: "/kitchen",
-      icon: <ChefHat className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => {},
-    },
-    {
-      label: "Service Calls",
-      href: "#service-calls",
-      icon: <Bell className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => {
-        handleTabChange("service-calls");
-        setServiceCallsCount(0);
-      },
+      group: "service", label: "Service calls", href: "#service-calls", icon: <Bell className="h-5 w-5 flex-shrink-0" />,
+      onClick: () => { handleTabChange("service-calls"); setServiceCallsCount(0); },
       badge: serviceCallsCount,
     },
-    {
-      label: "Cashier",
-      href: "#cashier",
-      icon: <Wallet className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => handleTabChange("cashier"),
-    },
-    {
-      label: "Reports",
-      href: "#reports",
-      icon: <LineChart className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => handleTabChange("reports"),
-    },
-    {
-      label: "Feedback",
-      href: "#feedback",
-      icon: <MessageSquare className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => handleTabChange("feedback"),
-    },
-    {
-      label: "Staff",
-      href: "#staff",
-      icon: <Users className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => handleTabChange("staff"),
-    },
-    {
-      label: "Service setup",
-      href: "#setup",
-      icon: <SlidersHorizontal className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => handleTabChange("setup"),
-    },
-    {
-      label: "Social Links",
-      href: "#social",
-      icon: <Share2 className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => handleTabChange("social"),
-    },
-    {
-      label: "QR Code",
-      href: "#qr",
-      icon: <QrCode className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => handleTabChange("qr"),
-    },
-  {
-      label: "Settings",
-      href: "#profile",
-      icon: <Settings className="h-5 w-5 flex-shrink-0" />,
-      onClick: () => handleTabChange("profile"),
-    },
+    { group: "setup", label: "Menu", href: "#menu", icon: <MenuIcon className="h-5 w-5 flex-shrink-0" />, onClick: () => handleTabChange("menu") },
+    { group: "setup", label: "QR codes", href: "#qr", icon: <QrCode className="h-5 w-5 flex-shrink-0" />, onClick: () => handleTabChange("qr") },
+    { group: "setup", label: "Staff", href: "#staff", icon: <Users className="h-5 w-5 flex-shrink-0" />, onClick: () => handleTabChange("staff") },
+    { group: "setup", label: "Reports", href: "#reports", icon: <LineChart className="h-5 w-5 flex-shrink-0" />, onClick: () => handleTabChange("reports") },
+    { group: "setup", label: "Settings", href: "#profile", icon: <Settings className="h-5 w-5 flex-shrink-0" />, onClick: () => handleTabChange("profile") },
   ];
+  const navTab = PARENT[activeTab] ?? activeTab; // sub-pages (Reviews, Bills & extras…) light up their parent item
+  // Waiters/kitchen/cashier on shift rarely need set-up pages, so that group starts folded for them (one tap opens it)
+  const crew = !!onShift && onShift.role !== "manager";
+  const setupOpen = setupPref ?? (!crew || links.some(l => l.group === "setup" && l.href === `#${navTab}`));
+  const toggleSetup = () => {
+    setSetupPref(!setupOpen);
+    try { localStorage.setItem("qm_nav_setup", setupOpen ? "closed" : "open"); } catch { /* private mode */ }
+  };
 
   useEffect(() => {
     checkAuth();
@@ -896,7 +833,7 @@ const DashboardWithSidebar = () => {
       <Sidebar open={open} setOpen={setOpen} animate={false}>
         <SidebarBody
           className="justify-between gap-4"
-          mobileTitle={links.find(l => l.href === `#${activeTab}`)?.label ?? "Dashboard"}
+          mobileTitle={links.find(l => l.href === `#${navTab}`)?.label ?? "Dashboard"}
           mobileActions={
             <>
               <ShiftChip restaurantId={restaurantId} className="max-w-[9rem]" />
@@ -910,11 +847,21 @@ const DashboardWithSidebar = () => {
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
             <Logo name={restaurantName} logo={restaurantLogo} />
             <ShiftChip restaurantId={restaurantId} className="hidden md:flex mt-4 w-full justify-start" />
-            <div className="mt-4 flex flex-col gap-0.5">
-              {links.map((link, idx) => {
-                const active = link.href === `#${activeTab}`;
+            {(["service", "setup"] as const).map(g => (
+            <div key={g} className="mt-4 flex flex-col gap-0.5">
+              {g === "service" ? (
+                <p className="px-2.5 pb-1 text-xs font-medium text-muted-foreground">During service</p>
+              ) : (
+                <button type="button" onClick={toggleSetup} aria-expanded={setupOpen}
+                  className="flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  Set up & review
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", setupOpen && "rotate-180")} />
+                </button>
+              )}
+              {links.filter(l => l.group === g && (g === "service" || setupOpen)).map((link) => {
+                const active = link.href === `#${navTab}`;
                 return (
-                  <div key={idx} className="relative" onClick={link.onClick}>
+                  <div key={link.href} className="relative" onClick={link.onClick}>
                     <SidebarLink
                       link={link}
                       className={cn(
@@ -931,6 +878,7 @@ const DashboardWithSidebar = () => {
                 );
               })}
             </div>
+            ))}
           </div>
           <div className="space-y-0.5 pt-4 border-t border-border/70">
             <InstallAppButton className="w-full flex items-center justify-start gap-2 py-2 px-2.5 rounded-xl text-sm text-foreground/75 hover:bg-card/70 hover:text-foreground transition-colors">
@@ -999,6 +947,7 @@ const DashboardWithSidebar = () => {
         onNewOrder={handleNewOrder}
         newOrderTrigger={lastNewOrder}
         onNewServiceCall={handleNewServiceCall}
+        onTabChange={handleTabChange}
       />
 
       {/* Phone: app-style tab bar for the pages used all day; "More" opens the full menu */}
@@ -1039,7 +988,13 @@ const DashboardWithSidebar = () => {
   );
 };
 
-const TABS = ["stats", "floor", "cashier", "reports", "staff", "setup", "menu", "orders", "service-calls", "feedback", "social", "qr", "profile"];
+const TABS = ["stats", "floor", "reports", "staff", "setup", "menu", "orders", "service-calls", "feedback", "social", "qr", "profile"];
+// Sub-pages keep their own ?tab= id (so old links still work) but live under one sidebar item
+const PARENT: Record<string, string> = { feedback: "reports", setup: "profile", social: "profile" };
+const SUBTABS: Record<string, { tab: string; label: string }[]> = {
+  reports: [{ tab: "reports", label: "Sales" }, { tab: "feedback", label: "Reviews" }],
+  profile: [{ tab: "profile", label: "Restaurant" }, { tab: "setup", label: "Bills & extras" }, { tab: "social", label: "Social links" }],
+};
 
 const isDashboardDark = () => {
   const t = localStorage.getItem("dashboard-theme");
@@ -1096,14 +1051,17 @@ const Dashboard = ({
   restaurantId, 
   onNewOrder,
   newOrderTrigger,
-  onNewServiceCall
-}: { 
-  activeTab: string; 
+  onNewServiceCall,
+  onTabChange,
+}: {
+  activeTab: string;
   restaurantId: string;
   onNewOrder: (order: Order) => void;
   newOrderTrigger: Order | null;
   onNewServiceCall: (call: ServiceCall) => void;
+  onTabChange: (tab: string) => void;
 }) => {
+  const subs = SUBTABS[PARENT[activeTab] ?? activeTab];
   return (
     <div className="flex flex-1 overflow-hidden md:pt-3">
       <main className="p-4 pb-28 md:p-8 lg:p-10 md:rounded-tl-[24px] md:border-l md:border-t border-border bg-card flex-1 w-full overflow-y-auto">
@@ -1124,9 +1082,20 @@ const Dashboard = ({
             />
           </div>
           
+          {subs && (
+            <nav aria-label="Section" className="mb-6 flex gap-2 overflow-x-auto [scrollbar-width:none]">
+              {subs.map(s => (
+                <button key={s.tab} type="button" onClick={() => onTabChange(s.tab)} aria-current={activeTab === s.tab ? "page" : undefined}
+                  className={cn("h-9 px-4 rounded-full text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    activeTab === s.tab ? "bg-foreground text-background" : "bg-muted text-foreground/75 hover:bg-muted/70")}>
+                  {s.label}
+                </button>
+              ))}
+            </nav>
+          )}
+
           <motion.div key={`rest-${activeTab}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
           {activeTab === "floor" && <FloorView restaurantId={restaurantId} />}
-          {activeTab === "cashier" && <CashierView restaurantId={restaurantId} />}
           {activeTab === "reports" && <ReportsView restaurantId={restaurantId} />}
           {activeTab === "staff" && <StaffView restaurantId={restaurantId} />}
           {activeTab === "setup" && <ServiceSetup restaurantId={restaurantId} />}
