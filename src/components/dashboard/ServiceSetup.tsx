@@ -1,4 +1,4 @@
-// Service setup: table PIN security, tax + service charge, discount codes, loyalty, Spin & Win prizes and guest WiFi.
+// Service setup: tax + service charge, discount codes, loyalty, Spin & Win prizes and guest WiFi.
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +13,7 @@ import { inr } from "@/lib/staffApi";
 import { cn } from "@/lib/utils";
 
 interface Settings {
-  require_table_pin: boolean; gst_rate: number; service_charge_pct: number;
+  gst_rate: number; service_charge_pct: number;
   loyalty: { enabled: boolean; rupees_per_point: number; goal: number; reward: string };
   spin_prizes: { label: string; kind: "pct" | "flat" | "item" | "none"; value?: number }[];
 }
@@ -34,7 +34,7 @@ export default function ServiceSetup({ restaurantId }: { restaurantId: string })
 
   const load = useCallback(async () => {
     const [r, c, w] = await Promise.all([
-      db("restaurants").select("require_table_pin, gst_rate, service_charge_pct, loyalty, spin_prizes").eq("id", restaurantId).single(),
+      db("restaurants").select("gst_rate, service_charge_pct, loyalty, spin_prizes").eq("id", restaurantId).single(),
       db("coupons").select("id, code, kind, value, min_bill, active").eq("restaurant_id", restaurantId).order("created_at"),
       db("restaurant_private").select("wifi_ssid, wifi_password").eq("restaurant_id", restaurantId).maybeSingle(),
     ]);
@@ -89,15 +89,6 @@ export default function ServiceSetup({ restaurantId }: { restaurantId: string })
           <p className="text-sm text-muted-foreground">How tables, bills and guest extras work.</p>
         </div>
       </div>
-
-      <Panel title="Table PIN" sub="Stops orders from a photo of your QR code. Staff open a table when guests sit, and guests type the 4-digit PIN from the table stand once.">
-        <div className="flex items-center justify-between gap-4">
-          <Label htmlFor="pin-on" className="text-sm font-normal">Guests need the table PIN to order</Label>
-          <Switch id="pin-on" checked={s.require_table_pin} disabled={saving === "pin"}
-            onCheckedChange={(v) => save("pin", { require_table_pin: v }, v ? "Table PIN switched on. Open tables from the Floor." : "Table PIN switched off")} />
-        </div>
-        {s.require_table_pin && <p className="text-xs text-muted-foreground">Each table's PIN is on the Floor screen. Print it on the table stand, or tell guests when they sit. After 5 wrong tries a table locks for 10 minutes.</p>}
-      </Panel>
 
       <Panel title="Tax and service charge" sub={`A ₹1,000 order comes to ${inr(example.total)} with these settings.`}>
         <div className="grid sm:grid-cols-2 gap-4">
@@ -182,7 +173,7 @@ export default function ServiceSetup({ restaurantId }: { restaurantId: string })
         </div>
       </Panel>
 
-      <Panel title="Guest WiFi" sub="Shown to seated guests only (after the table PIN), never on the public menu.">
+      <Panel title="Guest WiFi" sub="Shown to seated guests only, never on the public menu.">
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="space-y-1.5"><Label htmlFor="wf-ssid">Network name</Label><Input id="wf-ssid" value={wifi.wifi_ssid} maxLength={64} onChange={(e) => setWifi({ ...wifi, wifi_ssid: e.target.value })} placeholder="Cafe_Guest" /></div>
           <div className="space-y-1.5"><Label htmlFor="wf-pass">Password</Label><Input id="wf-pass" value={wifi.wifi_password} maxLength={64} onChange={(e) => setWifi({ ...wifi, wifi_password: e.target.value })} autoComplete="off" /></div>

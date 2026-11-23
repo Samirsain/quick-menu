@@ -6,7 +6,6 @@ import { getMockMenuItems } from "@/data/mockRestaurants";
 import { computeBill } from "@/lib/bill";
 import { TableError, type CallReason, type SeatCall, type SeatOrder, type SeatPayment, type SpinPrize, type TableApi, type TableState } from "@/lib/tableService";
 
-export const DEMO_PIN = "1234";
 const KEY = "qm_demo_seat_v2";
 const WAITER = "Rahul";
 const RATES = { gstRate: 5, servicePct: 0 };
@@ -29,7 +28,7 @@ interface DemoSeat {
   key: string; table: string; opened_at: string; closed_at: string | null;
   orders: SeatOrder[]; payments: SeatPayment[]; calls: SeatCall[];
   discount: TableState["discount"]; spin: SpinPrize | null; phone: string | null;
-  fails: number; lockedUntil: number; orderNo: number;
+  orderNo: number;
 }
 
 const now = () => Date.now();
@@ -104,19 +103,9 @@ function settle(s: DemoSeat): DemoSeat & { view: TableState } {
 export const demoTable: TableApi = {
   demo: true,
 
-  async join(table, pin) {
+  async join(table) {
     let s = load();
-    if (s && s.lockedUntil > now()) return { ok: false, error: "locked" };
-    if (pin !== DEMO_PIN) {
-      const base = s ?? newSeat(table);
-      base.fails = (base.lockedUntil && base.lockedUntil <= now() ? 0 : base.fails) + 1;
-      base.lockedUntil = base.fails >= 5 ? now() + 60_000 : 0;
-      save(base);
-      return base.fails >= 5 ? { ok: false, error: "locked" } : { ok: false, error: "bad_pin", tries_left: 5 - base.fails };
-    }
     if (!s || s.table !== table || settle(s).closed_at || !s.opened_at) s = newSeat(table);
-    s.fails = 0;
-    s.lockedUntil = 0;
     save(s);
     return { ok: true, key: s.key, table };
   },
@@ -231,5 +220,5 @@ export const demoTable: TableApi = {
 
 function newSeat(table: string): DemoSeat {
   return { key: uid().replace(/-/g, "").slice(0, 32), table, opened_at: iso(), closed_at: null, orders: [], payments: [], calls: [],
-           discount: null, spin: null, phone: null, fails: 0, lockedUntil: 0, orderNo: 0 };
+           discount: null, spin: null, phone: null, orderNo: 0 };
 }

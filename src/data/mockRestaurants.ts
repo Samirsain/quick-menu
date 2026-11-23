@@ -20,8 +20,6 @@ export interface MockRestaurant {
     twitter?: string;
   };
   upi_id: string;
-  /** The demo shows the table PIN step (PIN 1234, see src/lib/demoTable.ts) */
-  require_table_pin: boolean;
   subscription_plan_id: string;
   created_at: string;
   updated_at: string;
@@ -93,7 +91,6 @@ export const ZEN_CAFE_RESTAURANT: MockRestaurant = {
     google_review: "https://search.google.com/local/writereview?placeid=ChIJZenCafeDemo",
   },
   upi_id: "zencafe@okaxis",
-  require_table_pin: true,
   subscription_plan_id: "00000000-0000-4000-8000-0000000000b2",
   created_at: "2026-01-01T08:00:00.000Z",
   updated_at: "2026-01-01T08:00:00.000Z",

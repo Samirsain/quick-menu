@@ -20,8 +20,6 @@ import { registerReconnectCallback, unregisterReconnectCallback } from "@/lib/re
 import { VegMark, BestsellerBadge, ChefPickBadge } from "@/components/FoodBadges";
 import { useTableSeat } from "@/hooks/useTableSeat";
 import { errorCopy, joinErrorCopy, notifyStaff, type CartLine, type JoinResult, type SeatOrder } from "@/lib/tableService";
-import { DEMO_PIN } from "@/lib/demoTable";
-import TableGate from "@/components/guest/TableGate";
 import BillSheet from "@/components/guest/BillSheet";
 import WaiterCall from "@/components/guest/WaiterCall";
 import WaitPanel from "@/components/guest/WaitPanel";
@@ -52,11 +50,10 @@ const CustomerMenu = () => {
   const [comment, setComment] = useState("");
   const [reviewStep, setReviewStep] = useState<"rate" | "google">("rate");
   const [commentCopied, setCommentCopied] = useState(false);
-  // The table: PIN-checked seating, live orders, bill, calls (src/hooks/useTableSeat.ts)
+  // The table: seating, live orders, bill, calls (src/hooks/useTableSeat.ts)
   const seat = useTableSeat(restaurantId, (e) => toast({ title: "An order couldn't be sent", description: errorCopy(e), variant: "destructive" }));
   const activeOrders: SeatOrder[] = useMemo(() => seat.state?.orders ?? [], [seat.state?.orders]);
   const currentOrder = activeOrders.filter(o => !["rejected", "cancelled"].includes(o.status)).pop() ?? null;
-  const [browsing, setBrowsing] = useState(false); // "Just look at the menu" from the PIN screen
   const [orderNote, setOrderNote] = useState("");
   const [reviewed, setReviewed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -155,7 +152,7 @@ const CustomerMenu = () => {
       try {
         const { data, error } = await (supabase
           .from("restaurants") as any)
-          .select("social_links, name, description, logo_url, cover_url, is_active, orders_enabled, waiter_call_enabled, upi_id, require_table_pin")
+          .select("social_links, name, description, logo_url, cover_url, is_active, orders_enabled, waiter_call_enabled, upi_id")
           .eq("id", restaurantId)
           .single();
         
@@ -183,8 +180,7 @@ const CustomerMenu = () => {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  const needsPin = !!(restaurant as { require_table_pin?: boolean } | undefined)?.require_table_pin;
-  const showSplash = !splashMinDone || isLoadingRestaurant || (needsPin && !seat.checked);
+  const showSplash = !splashMinDone || isLoadingRestaurant;
   const ordersEnabled = restaurant?.orders_enabled !== false;
   const waiterCallEnabled = restaurant?.waiter_call_enabled !== false;
   const googleReviewRaw = (restaurant?.social_links as any)?.google_review;
@@ -292,7 +288,7 @@ const CustomerMenu = () => {
     if (restaurantId && !seat.api?.demo) incrementViewMutation.mutate(); // the demo has no database row to count
   }, [restaurantId]);
 
-  // The table number follows the seat (PIN screen, or the first order at a no-PIN restaurant)
+  // The table number follows the seat (set by the first order)
   useEffect(() => {
     if (seat.seat?.table && !tableFromQR) setTableNumber(seat.seat.table);
   }, [seat.seat?.table, tableFromQR]);
@@ -387,15 +383,6 @@ const CustomerMenu = () => {
     }
     if (!isValidTableNumber(table)) {
       toast({ title: `Invalid ${locationLabelLower} number`, description: `${locationLabel} number must be alphanumeric (max 10 chars)`, variant: "destructive" });
-      return;
-    }
-    if (needsPin && (!seat.seat || seat.state?.status === "closed")) {
-      // Browsing without the PIN, or the last bill is paid: ask for the PIN now (the cart stays)
-      const closed = seat.state?.status === "closed";
-      if (closed) seat.leave();
-      setShowCartDialog(false);
-      setBrowsing(false);
-      toast({ title: "Enter your table PIN", description: closed ? "Your last bill is paid. The PIN starts a new one." : "Ordering needs the PIN on your table stand." });
       return;
     }
     if (isRateLimited(`order_${getClientFingerprint()}`, RATE_LIMITS.order)) {
@@ -642,19 +629,6 @@ const CustomerMenu = () => {
   }
 
   const restaurantName = restaurant?.name || "Menu";
-  if (needsPin && !seat.seat && !browsing) {
-    return (
-      <TableGate
-        restaurantName={restaurantName}
-        logoUrl={restaurant?.logo_url}
-        locationLabel={locationLabel}
-        tableFromQR={tableFromQR}
-        demoPin={seat.api?.demo ? DEMO_PIN : undefined}
-        onJoin={(table, pin) => seat.join(table, pin)}
-        onBrowse={() => setBrowsing(true)}
-      />
-    );
-  }
   const social = (restaurant?.social_links || {}) as Record<string, string | undefined>;
   const socialLinks = [
     { key: "instagram", Icon: Instagram, label: "Instagram" },
@@ -743,7 +717,7 @@ const CustomerMenu = () => {
     </div>
   );
 
-  const tableLocked = !!tableFromQR || (needsPin && !!seat.seat);
+  const tableLocked = !!tableFromQR;
   // Cart checkout section (pinned total, table input, and place order button)
   const cartCheckoutSection = (
     <>

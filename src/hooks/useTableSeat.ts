@@ -20,7 +20,6 @@ export function useTableSeat(restaurantId: string | undefined, onQueueFailed?: (
   const queueKey = `qm_queue_${restaurantId}`;
   const [seat, setSeatState] = useState<Seat | null>(() => read<Seat>(seatKey));
   const [state, setState] = useState<TableState | null>(null);
-  const [checked, setChecked] = useState(false); // first answer is in, so the PIN screen never flashes for a seated guest
   const [queued, setQueued] = useState(() => read<QueuedOrder[]>(queueKey)?.length || 0);
   const seatRef = useRef(seat);
   seatRef.current = seat;
@@ -34,7 +33,7 @@ export function useTableSeat(restaurantId: string | undefined, onQueueFailed?: (
 
   const refresh = useCallback(async () => {
     const s = seatRef.current;
-    if (!api || !s) { setChecked(true); return null; }
+    if (!api || !s) return null;
     try {
       const st = await api.state(s.key);
       if (seatRef.current?.key !== s.key) return null; // the guest switched tables meanwhile
@@ -42,13 +41,11 @@ export function useTableSeat(restaurantId: string | undefined, onQueueFailed?: (
       return st;
     } catch {
       return null; // offline: keep showing what we had
-    } finally {
-      setChecked(true);
     }
   }, [api, setSeat]);
 
   useEffect(() => {
-    if (!seat) { setState(null); setChecked(true); return; }
+    if (!seat) { setState(null); return; }
     refresh();
     const t = setInterval(() => { if (document.visibilityState === "visible") refresh(); }, api?.demo ? 1500 : 5000);
     const onShow = () => { if (document.visibilityState === "visible") refresh(); };
@@ -68,14 +65,14 @@ export function useTableSeat(restaurantId: string | undefined, onQueueFailed?: (
   const join = useCallback(async (table: string, pin?: string): Promise<JoinResult> => {
     if (!api) return { ok: false, error: "unavailable" };
     const r = await api.join(table.trim(), pin);
-    if (r.ok) { setChecked(false); setSeat({ key: r.key, table: r.table }); }
+    if (r.ok) setSeat({ key: r.key, table: r.table });
     return r;
   }, [api, setSeat]);
 
-  /** The key for this table, joining it first when needed (no-PIN restaurants). Throws the JoinResult on failure. */
+  /** The key for this table, joining it first when needed. Throws the JoinResult on failure. */
   const keyFor = useCallback(async (table: string) => {
     const s = seatRef.current;
-    // A paid, closed bill can't take new orders: a no-PIN table starts a fresh bill (PIN tables go back to the PIN screen)
+    // A paid, closed bill can't take new orders: joining again starts a fresh bill
     if (s && s.table === table.trim() && stateRef.current?.status !== "closed") return s.key;
     const r = await join(table);
     if (!r.ok) throw r;
@@ -143,7 +140,6 @@ export function useTableSeat(restaurantId: string | undefined, onQueueFailed?: (
     api,
     seat,
     state,
-    checked,
     queued,
     join,
     refresh,

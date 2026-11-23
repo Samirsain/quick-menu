@@ -35,7 +35,6 @@ export const staffApi = {
   openTable: (r: string, table: string, by: string | null) => rpc<{ table: string; pin: string }>("staff_open_table", { p_restaurant_id: r, p_table: table, p_by: by }),
   closeTable: (r: string, table: string, by: string | null, note?: string) => rpc<void>("staff_close_table", { p_restaurant_id: r, p_table: table, p_by: by, p_note: note ?? null }),
   markClean: (r: string, table: string, by: string | null) => rpc<void>("staff_mark_clean", { p_restaurant_id: r, p_table: table, p_by: by }),
-  setPin: (r: string, table: string, by: string | null, pin?: string) => rpc<string>("staff_set_pin", { p_restaurant_id: r, p_table: table, p_pin: pin ?? null, p_by: by }),
   transfer: (r: string, from: string, to: string, by: string | null) => rpc<void>("staff_transfer_table", { p_restaurant_id: r, p_from: from, p_to: to, p_by: by }),
   merge: (r: string, from: string, into: string, by: string | null) => rpc<void>("staff_merge_tables", { p_restaurant_id: r, p_from: from, p_into: into, p_by: by }),
   settle: (paymentId: string, accept: boolean, by: string | null) => rpc<Bill>("staff_settle_payment", { p_payment_id: paymentId, p_accept: accept, p_by: by }),

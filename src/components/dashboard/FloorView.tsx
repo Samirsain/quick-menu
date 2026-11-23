@@ -1,7 +1,7 @@
 // Live floor: every table at a glance (free, seated, ordered, bill due, cleaning), the payments waiting for a
 // staff confirm, and one sheet per table that shows the one thing to do next (everything else folds away).
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Bell, ChevronDown, Clock, KeyRound, Loader2, LayoutGrid, Printer, Wallet } from "lucide-react";
+import { Bell, ChevronDown, Clock, Loader2, LayoutGrid, Printer, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 /** floor_state, kept live by realtime (debounced) with a slow poll as a safety net */
 export function useFloor(restaurantId: string) {
   const [floor, setFloor] = useState<FloorState | null>(null);
-  const [config, setConfig] = useState<{ numbers: string[]; name: string; requirePin: boolean; goal: number } | null>(null);
+  const [config, setConfig] = useState<{ numbers: string[]; name: string; goal: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -32,12 +32,12 @@ export function useFloor(restaurantId: string) {
   useEffect(() => {
     load();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- v2 columns aren't in the generated types until `supabase gen types` runs
-    (supabase.from("restaurants") as any).select("name, table_config, require_table_pin, loyalty").eq("id", restaurantId).single()
-      .then(({ data }: { data: { name: string; table_config: { total?: number; skip?: number[] }; require_table_pin?: boolean; loyalty?: { goal?: number } } | null }) => {
+    (supabase.from("restaurants") as any).select("name, table_config, loyalty").eq("id", restaurantId).single()
+      .then(({ data }: { data: { name: string; table_config: { total?: number; skip?: number[] }; loyalty?: { goal?: number } } | null }) => {
         const tc = data?.table_config || {};
         const skip = new Set(tc.skip || []);
         const numbers = Array.from({ length: tc.total || 10 }, (_, i) => i + 1).filter(n => !skip.has(n)).map(String);
-        setConfig({ numbers, name: data?.name || "", requirePin: !!data?.require_table_pin, goal: data?.loyalty?.goal || 200 });
+        setConfig({ numbers, name: data?.name || "", goal: data?.loyalty?.goal || 200 });
       });
     const ch = supabase.channel(`floor-${restaurantId}-${Date.now()}`);
     for (const table of ["dining_tables", "seatings", "payments", "orders", "service_calls"]) {
@@ -301,7 +301,6 @@ export function TableSheet({ restaurantId, number, rows, config, onClose, onChan
   const lines = s?.orders.filter(o => !["rejected", "cancelled"].includes(o.status)).flatMap(o => o.items || []) || [];
   const pending = s?.payments.filter(p => p.status === "pending") || [];
   const settled = s?.payments.filter(p => p.status !== "pending") || [];
-  const locked = !!row?.table?.pin_locked_until && new Date(row.table.pin_locked_until) > new Date();
   const close = async (note?: string) => { if (s && await run("close", () => staffApi.closeTable(restaurantId, s.table_number, by, note), "Bill closed")) onClose(); };
 
   return (
@@ -319,20 +318,6 @@ export function TableSheet({ restaurantId, number, rows, config, onClose, onChan
                 {row.mergedInto && ` · shares the bill of ${lt} ${row.mergedInto}`}
               </SheetDescription>
             </SheetHeader>
-
-            {/* PIN: only matters when guests need it to order */}
-            {(config?.requirePin || locked) && (
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-border p-4">
-                <div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5"><KeyRound className="h-3.5 w-3.5" /> PIN for guests</p>
-                  <p className="mt-1 font-display text-3xl tracking-[0.2em] tabular-nums">{row.table?.pin ?? "----"}</p>
-                  {locked && <p className="mt-1 text-xs font-medium text-destructive">Locked after wrong tries.</p>}
-                </div>
-                <Button variant="outline" size="sm" disabled={!!busy} onClick={() => run("pin", () => staffApi.setPin(restaurantId, row.number, by), locked ? "Unlocked with a new PIN" : "New PIN set")}>
-                  {spin("pin", locked ? "Unlock" : "New PIN")}
-                </Button>
-              </div>
-            )}
 
             {/* No guests: one button */}
             {!s && (row.status === "cleaning" ? (
